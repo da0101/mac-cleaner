@@ -28,18 +28,21 @@ closure_approved: false
 - [x] Secrets/runtime/generated files ignored.
 - [x] README/license/dependencies/CODEOWNERS present.
 - [x] Tests and syntax checks pass.
-- [ ] Commit and tag created.
-- [ ] Push completed or blocker documented.
+- [x] Commit and tag created.
+- [x] Push completed or blocker documented.
 
 ## Resume state
+_Overwritten by `ab checkpoint` — the compact payload the next agent reads first. Keep this block under ~10 lines._
 
-- **Last updated:** 2026-04-29 by codex
-- **What just happened:** Release files were validated and committed locally.
-- **Current focus:** Tag `v1.0.0`, push `main` and the tag, then document GitHub branch-protection blocker if needed.
-- **Next action:** Create the annotated release tag and push to origin.
-- **Blockers:** GitHub CLI token invalid for branch protection automation.
+- **Last updated:** 2026-04-29 by danilulmashev
+- **What just happened:** Published main and v1.0.0 to origin after release validation.
+- **Current focus:** —
+- **Next action:** Re-authenticate gh or use GitHub Settings to enable branch protection requiring CODEOWNER review and restricting pushes to da0101.
+- **Blockers:** Branch protection automation is blocked until `gh` is re-authenticated or repo settings are changed in GitHub UI.
 
 ## Progress log
+
+2026-04-29 15:19 — Published main and v1.0.0 to origin after release validation.
 
 2026-04-29 15:15 — Started open-source release stream and restored Agentboard skeleton.
 2026-04-29 15:32 — Validated release prep with unit tests, py_compile, ab doctor, ignore checks, and secret-pattern scan.
