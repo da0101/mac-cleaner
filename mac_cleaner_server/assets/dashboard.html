@@ -55,6 +55,14 @@
   <div id="alertBody" style="font-size:13px"></div>
 </div>
 
+<div class="actions">
+  <button class="btn primary" id="btnClean" onclick="cleanAll()">Clean All Garbage</button>
+  <button class="btn" id="btnScan" onclick="scanNow()">Scan Now</button>
+  <button class="btn" id="btnDocker" onclick="dockerPrune()">Docker Prune</button>
+  <button class="btn" id="btnRam" onclick="purgeRam()">Purge RAM</button>
+  <button class="btn" id="btnToggle" onclick="toggleAuto()">Pause Auto-Clean</button>
+</div>
+
 <div class="section" id="aiSection" style="border-color:var(--purple)">
   <h2 style="color:var(--purple)">AI Recommendations <span id="aiStatus" style="font-size:11px;color:var(--dim);font-weight:400"></span></h2>
   <div id="aiSummary" style="font-size:13px;color:var(--dim);margin-bottom:8px">Loading recommendations...</div>
@@ -67,14 +75,6 @@
   <div id="chromeTabSummary" style="font-size:13px;color:var(--dim);margin-bottom:8px">Loading Chrome tabs...</div>
   <div id="chromeTabBody"></div>
   <button class="btn" id="btnChromeTabs" onclick="refreshChromeTabs()" style="margin-top:12px">Refresh Tabs</button>
-</div>
-
-<div class="actions">
-  <button class="btn primary" id="btnClean" onclick="cleanAll()">Clean All Garbage</button>
-  <button class="btn" id="btnScan" onclick="scanNow()">Scan Now</button>
-  <button class="btn" id="btnDocker" onclick="dockerPrune()">Docker Prune</button>
-  <button class="btn" id="btnRam" onclick="purgeRam()">Purge RAM</button>
-  <button class="btn" id="btnToggle" onclick="toggleAuto()">Pause Auto-Clean</button>
 </div>
 
 <div class="modal-backdrop" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">

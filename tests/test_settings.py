@@ -50,6 +50,16 @@ class SettingsTests(unittest.TestCase):
         self.assertIsNotNone(get_dashboard_asset("dashboard.css"))
         self.assertIsNone(get_dashboard_asset("../settings.json"))
 
+    def test_dashboard_primary_actions_render_before_optimizer_panels(self):
+        html = get_dashboard_html()
+
+        actions = html.index('class="actions"')
+        ai = html.index('id="aiSection"')
+        chrome = html.index('id="chromeTabsSection"')
+
+        self.assertLess(actions, ai)
+        self.assertLess(actions, chrome)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -42,13 +42,15 @@ _Append-only. Format: `YYYY-MM-DD — <decision> — <rationale>`_
 ## Resume state
 _Overwritten by `ab checkpoint` — the compact payload the next agent reads first. Keep this block under ~10 lines._
 
-- **Last updated:** 2026-04-29 by danilulmashev (auto)
-- **What just happened:** Committed the approved AI optimizer, browser tab optimizer, and server split changes.
-- **Current focus:** Server refactor is complete and ready for owner closure review.
-- **Next action:** Ask owner whether to close and archive `server-refactor`.
+- **Last updated:** 2026-04-29 by danilulmashev
+- **What just happened:** Moved the dashboard primary action bar above the AI and Chrome optimizer panels and committed f345edd.
+- **Current focus:** —
+- **Next action:** Owner can verify the dashboard layout, then decide whether to close server-refactor.
 - **Blockers:** none
 
 ## Progress log
+
+2026-04-29 19:46 — Moved the dashboard primary action bar above the AI and Chrome optimizer panels and committed f345edd.
 
 2026-04-29 19:34 — (auto) 8df1848: Add AI optimizers and split dashboard server
 
