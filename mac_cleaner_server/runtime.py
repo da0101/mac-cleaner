@@ -21,7 +21,7 @@ def print_startup_banner():
     print(f"""
 [96m[1m
   ╔══════════════════════════════════════════════╗
-  ║         MAC CLEANER SERVER v1.0              ║
+  ║         MAC CLEANER SERVER v1.1              ║
   ║   Dashboard:  http://localhost:{PORT}          ║
   ║   Auto-clean: disabled by default            ║
   ║   AI mode: {'auto RAM' if state["ai_auto_optimize"] else 'advisory' if state["ai_enabled"] else 'disabled'}                         ║

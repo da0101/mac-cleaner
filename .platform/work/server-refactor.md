@@ -43,12 +43,16 @@ _Append-only. Format: `YYYY-MM-DD — <decision> — <rationale>`_
 _Overwritten by `ab checkpoint` — the compact payload the next agent reads first. Keep this block under ~10 lines._
 
 - **Last updated:** 2026-04-29 by danilulmashev
-- **What just happened:** Moved the dashboard primary action bar above the AI and Chrome optimizer panels and committed f345edd.
+- **What just happened:** Prepared v1.1.0 release docs and updated the terminal server banner to v1.1.
 - **Current focus:** —
-- **Next action:** Owner can verify the dashboard layout, then decide whether to close server-refactor.
+- **Next action:** Create and push the v1.1.0 release tag on the release-docs commit.
 - **Blockers:** none
 
 ## Progress log
+
+2026-04-29 19:53 — Prepared v1.1.0 release docs and updated the terminal server banner to v1.1.
+
+2026-04-29 19:53 — (auto) 83f41b0: Prepare v1.1.0 release docs
 
 2026-04-29 19:46 — Moved the dashboard primary action bar above the AI and Chrome optimizer panels and committed f345edd.
 

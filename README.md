@@ -4,6 +4,15 @@ Local macOS cleanup and RAM visibility tool for developers.
 
 mac-cleaner scans known cache/log/development artifact locations, reports large macOS System Data contributors, and shows RAM/process pressure without automatically killing active work.
 
+## What's New in v1.1.0
+
+- Gemini-backed dashboard recommendations with `--ai` for automatic safe RAM purge and `--ai-advisory` for recommendations only.
+- Chrome Tab Optimizer that inspects local Chrome tab metadata, ranks likely duplicate/media/converter tabs, and requires confirmation before closing.
+- Dashboard settings modal with persisted `settings.json` controls for refresh intervals, target available RAM, auto-clean timing, visible widgets, and dark/light/system theme.
+- Primary cleanup controls now stay at the top of the dashboard for fast scan, clean, Docker prune, RAM purge, and auto-clean toggling.
+- The 2,000+ line dashboard server was split into the `mac_cleaner_server/` package so future cleanup, memory, AI, Chrome, and UI work is easier to maintain.
+- macOS memory reporting now emphasizes available/reusable RAM instead of raw free pages.
+
 ## Safety Model
 
 mac-cleaner is intentionally conservative:
@@ -121,9 +130,11 @@ python3 -m unittest
 python3 -m py_compile scanner.py cleaner.py server.py ai_cleaner.py ai_advisor.py browser_tabs.py mac_cleaner_server/*.py
 ```
 
+The local dashboard server now lives in focused modules under `mac_cleaner_server/`; keep `server.py` as the thin executable entrypoint.
+
 ## Release Status
 
-`v1.0.0` is the first public release candidate. The dashboard and CLI scanner are useful; the background Gemini advisor is experimental and the separate `./ai` terminal assistant is still legacy OpenAI-based.
+`v1.1.0` adds the background Gemini optimizer, Chrome tab recommendations, persistent dashboard settings, light/dark mode, and the split server package. Destructive storage cleanup and Chrome tab closing remain confirmation-based. The separate `./ai` terminal assistant is still legacy OpenAI-based.
 
 ## License
 
