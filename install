@@ -1,0 +1,20 @@
+#!/bin/bash
+set -euo pipefail
+
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BIN_DIR="${HOME}/.local/bin"
+TARGET="${BIN_DIR}/mac-cleaner"
+
+mkdir -p "$BIN_DIR"
+ln -sfn "${PROJECT_DIR}/start" "$TARGET"
+
+echo "Installed mac-cleaner -> ${PROJECT_DIR}/start"
+echo
+if [[ ":${PATH}:" != *":${BIN_DIR}:"* ]]; then
+  echo "Add this to your shell profile if mac-cleaner is not found:"
+  echo "  export PATH=\"${BIN_DIR}:\$PATH\""
+  echo
+fi
+echo "Try:"
+echo "  mac-cleaner --ai"
+echo "  mac-cleaner --no-ai"

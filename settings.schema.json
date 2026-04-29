@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mac-cleaner settings",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "theme": {
+      "type": "string",
+      "enum": ["dark", "light", "system"],
+      "default": "dark"
+    },
+    "ai_recommendation_interval_seconds": {
+      "type": "integer",
+      "minimum": 60,
+      "maximum": 3600,
+      "default": 300
+    },
+    "chrome_tab_recommendation_interval_seconds": {
+      "type": "integer",
+      "minimum": 60,
+      "maximum": 3600,
+      "default": 300
+    },
+    "ai_auto_optimize_cooldown_seconds": {
+      "type": "integer",
+      "minimum": 60,
+      "maximum": 1800,
+      "default": 300
+    },
+    "auto_clean_interval_seconds": {
+      "type": "integer",
+      "minimum": 300,
+      "maximum": 86400,
+      "default": 900
+    },
+    "ram_purge_interval_seconds": {
+      "type": "integer",
+      "minimum": 60,
+      "maximum": 3600,
+      "default": 300
+    },
+    "ai_target_available_ram_mb": {
+      "type": "integer",
+      "minimum": 512,
+      "maximum": 16384,
+      "default": 3072
+    },
+    "dashboard_status_interval_seconds": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 300,
+      "default": 10
+    },
+    "dashboard_process_interval_seconds": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 300,
+      "default": 15
+    },
+    "dashboard_alert_interval_seconds": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 300,
+      "default": 10
+    },
+    "dashboard_history_interval_seconds": {
+      "type": "integer",
+      "minimum": 10,
+      "maximum": 600,
+      "default": 60
+    },
+    "show_ai_recommendations": {
+      "type": "boolean",
+      "default": true
+    },
+    "show_chrome_tab_optimizer": {
+      "type": "boolean",
+      "default": true
+    },
+    "show_garbage_breakdown": {
+      "type": "boolean",
+      "default": true
+    },
+    "show_ram_breakdown": {
+      "type": "boolean",
+      "default": true
+    },
+    "show_rule_recommendations": {
+      "type": "boolean",
+      "default": true
+    },
+    "show_cleanup_history": {
+      "type": "boolean",
+      "default": true
+    }
+  }
+}

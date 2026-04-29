@@ -1,0 +1,14 @@
+#!/bin/bash
+set -euo pipefail
+
+TARGET="${HOME}/.local/bin/mac-cleaner"
+
+if [[ -L "$TARGET" ]]; then
+  rm "$TARGET"
+  echo "Removed ${TARGET}"
+elif [[ -e "$TARGET" ]]; then
+  echo "${TARGET} exists but is not a symlink; refusing to remove it." >&2
+  exit 1
+else
+  echo "mac-cleaner command is not installed at ${TARGET}"
+fi

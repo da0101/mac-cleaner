@@ -13,6 +13,7 @@ mac-cleaner is intentionally conservative:
 - User documents, source repositories, credentials, app databases, keychains, mail, photos, and unknown data are never default-deleted.
 - VS Code, Cursor, terminals, Claude Code, Codex, Gemini, Node, and Python jobs are protected from automatic termination.
 - The dashboard binds to `127.0.0.1`.
+- Chrome tab optimization inspects local tab titles/domains and asks before closing any tab.
 
 ## Requirements
 
@@ -29,6 +30,12 @@ python3 -m venv .venv
 python -m pip install -r requirements.txt
 ```
 
+Install the `mac-cleaner` command:
+
+```bash
+./install
+```
+
 ## Usage
 
 Terminal scanner:
@@ -41,6 +48,41 @@ Local dashboard:
 
 ```bash
 ./start
+# or, after ./install:
+mac-cleaner
+```
+
+Local dashboard with Gemini AI and automatic safe RAM optimization:
+
+```bash
+cp .env.example .env
+# add GEMINI_API_KEY to .env
+./start --ai
+# or:
+mac-cleaner --ai
+```
+
+Chrome tab optimizer:
+
+```text
+Open the dashboard and use the Chrome Tab Optimizer panel.
+Recommended tabs require confirmation before closing.
+```
+
+Gemini recommendations only, without automatic RAM purge:
+
+```bash
+./start --ai-advisory
+# or:
+mac-cleaner --ai-advisory
+```
+
+Run without background AI:
+
+```bash
+./start --no-ai
+# or:
+mac-cleaner --no-ai
 ```
 
 Then open:
@@ -49,7 +91,7 @@ Then open:
 http://localhost:3333
 ```
 
-Experimental AI assistant:
+Legacy terminal AI assistant:
 
 ```bash
 cp .env.example .env
@@ -76,12 +118,12 @@ Run tests:
 
 ```bash
 python3 -m unittest
-python3 -m py_compile scanner.py cleaner.py server.py ai_cleaner.py
+python3 -m py_compile scanner.py cleaner.py server.py ai_cleaner.py ai_advisor.py browser_tabs.py mac_cleaner_server/*.py
 ```
 
 ## Release Status
 
-`v1.0.0` is the first public release candidate. The dashboard and CLI scanner are useful; the AI assistant is still experimental and currently OpenAI-based.
+`v1.0.0` is the first public release candidate. The dashboard and CLI scanner are useful; the background Gemini advisor is experimental and the separate `./ai` terminal assistant is still legacy OpenAI-based.
 
 ## License
 

@@ -11,6 +11,7 @@ venv/
 
 # Runtime data
 cleanup_history.json
+settings.json
 *.log
 
 # macOS

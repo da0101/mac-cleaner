@@ -5,7 +5,7 @@
 
 ## Stack
 
-Standalone Python 3 scripts using macOS command-line tools, Python stdlib `http.server` for a localhost dashboard, JSON history storage, and a planned Gemini AI assistant via `google-genai`.
+Standalone Python 3 scripts using macOS command-line tools, Python stdlib `http.server` for a localhost dashboard, JSON history storage, optional Gemini background recommendations via `google-genai`, and a legacy OpenAI terminal assistant.
 
 ## Repo Structure
 
@@ -14,8 +14,8 @@ Single GitHub repository: `da0101/mac-cleaner`.
 ## How This Project Actually Works
 
 - `./clean` runs `cleaner.py`, the terminal storage scanner/interactive cleaner.
-- `./start` runs `server.py`, a localhost dashboard/API on `127.0.0.1:3333`.
-- `./ai` runs `ai_cleaner.py`, currently OpenAI-based but slated for Gemini migration.
+- `./start` runs `server.py`, a localhost dashboard/API on `127.0.0.1:3333`; `./start --ai` enables Gemini recommendations plus automatic safe RAM purge only.
+- `./ai` runs `ai_cleaner.py`, currently legacy OpenAI-based terminal chat.
 - `cleanup_history.json` stores recent dashboard cleanup summaries.
 - Cleanup and process actions are local, powerful, and must be preview/confirmation-first.
 
@@ -28,11 +28,12 @@ Follow `.platform/workflow.md`: triage, interview, research, propose, execute, v
 - `.platform/STATUS.md` — current feature areas, priorities, blocklist, gotchas.
 - `.platform/architecture.md` — components, data flow, invariants, debt.
 - `.platform/repos.md` — single-repo routing and conventions map.
-- `.platform/work/BRIEF.md` — current priority: open-source release prep.
+- `.platform/work/BRIEF.md` — current active stream and relevant context.
 - `.platform/domains/storage-cleanup.md`
 - `.platform/domains/memory-optimization.md`
-- `.platform/domains/ai-assistant.md`
 - `.platform/domains/local-dashboard.md`
+- `.platform/domains/ai-assistant.md`
+- `.platform/domains/background-ai-optimizer.md`
 - `.platform/conventions/` — Python, security, testing, API, QA, deployment, permissions.
 - `.platform/memory/` — decisions, gotchas, playbook, open questions, log.
 
@@ -44,5 +45,5 @@ Follow `.platform/workflow.md`: triage, interview, research, propose, execute, v
 4. Prefer memory pressure, soft reclamation, and app suggestions before force-killing processes.
 5. Keep dashboard cleanup controls bound to `127.0.0.1`; do not expose them on the network.
 6. Do not read or log `.env` contents or secrets.
-7. Migrate AI behavior from OpenAI to Gemini using the official Google GenAI SDK.
+7. Background AI may auto-run safe RAM purge only; model output is validated locally and never directly executes kill/delete/close actions.
 <!-- agentboard:root-entry:end v=1 -->

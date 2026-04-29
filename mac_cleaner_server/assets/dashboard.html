@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mac Cleaner</title>
+<link rel="stylesheet" href="/assets/dashboard.css">
+</head>
+<body>
+
+<div class="header">
+  <h1>Mac Cleaner</h1>
+  <div class="header-right">
+    <div class="status">
+      <span><span class="dot"></span>Running on localhost:3333</span>
+      <span>·</span>
+      <span>Auto-clean: <span id="autoStatus" class="auto-badge off">OFF</span></span>
+      <span id="countdown" class="countdown"></span>
+    </div>
+    <span class="top-actions">
+      <button class="icon-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode" aria-label="Toggle light/dark mode">◐</button>
+      <button class="icon-btn" onclick="openSettings()" title="Open settings" aria-label="Open settings">⚙</button>
+    </span>
+  </div>
+</div>
+
+<div class="grid" id="statsGrid">
+  <div class="stat-card">
+    <div class="label">Available Memory</div>
+    <div class="value" id="freeRam">—</div>
+    <div class="bar-bg"><div class="bar-fill" id="ramBar" style="width:0%;background:var(--green)"></div></div>
+    <div class="sub" id="ramSub"></div>
+    <div class="sub" id="ramDetail" style="margin-top:2px"></div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Disk Available</div>
+    <div class="value" id="diskFree">—</div>
+    <div class="bar-bg"><div class="bar-fill" id="diskBar" style="width:0%;background:var(--blue)"></div></div>
+    <div class="sub" id="diskSub"></div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Garbage Found</div>
+    <div class="value" id="garbageTotal">—</div>
+    <div class="sub" id="garbageSub"></div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Last Cleanup</div>
+    <div class="value" id="lastClean">—</div>
+    <div class="sub" id="lastCleanSub"></div>
+  </div>
+</div>
+
+<div id="alertBanner" style="display:none;background:#3b1520;border:1px solid var(--red);border-radius:12px;padding:16px;margin-bottom:16px">
+  <div style="font-weight:700;color:var(--red);margin-bottom:8px" id="alertTitle">⚠ Memory Leak Detected</div>
+  <div id="alertBody" style="font-size:13px"></div>
+</div>
+
+<div class="section" id="aiSection" style="border-color:var(--purple)">
+  <h2 style="color:var(--purple)">AI Recommendations <span id="aiStatus" style="font-size:11px;color:var(--dim);font-weight:400"></span></h2>
+  <div id="aiSummary" style="font-size:13px;color:var(--dim);margin-bottom:8px">Loading recommendations...</div>
+  <div id="aiBody"></div>
+  <button class="btn" id="btnAI" onclick="refreshAI()" style="margin-top:12px">Refresh AI</button>
+</div>
+
+<div class="section" id="chromeTabsSection" style="border-color:var(--cyan)">
+  <h2 style="color:var(--cyan)">Chrome Tab Optimizer <span id="chromeTabStatus" style="font-size:11px;color:var(--dim);font-weight:400"></span></h2>
+  <div id="chromeTabSummary" style="font-size:13px;color:var(--dim);margin-bottom:8px">Loading Chrome tabs...</div>
+  <div id="chromeTabBody"></div>
+  <button class="btn" id="btnChromeTabs" onclick="refreshChromeTabs()" style="margin-top:12px">Refresh Tabs</button>
+</div>
+
+<div class="actions">
+  <button class="btn primary" id="btnClean" onclick="cleanAll()">Clean All Garbage</button>
+  <button class="btn" id="btnScan" onclick="scanNow()">Scan Now</button>
+  <button class="btn" id="btnDocker" onclick="dockerPrune()">Docker Prune</button>
+  <button class="btn" id="btnRam" onclick="purgeRam()">Purge RAM</button>
+  <button class="btn" id="btnToggle" onclick="toggleAuto()">Pause Auto-Clean</button>
+</div>
+
+<div class="modal-backdrop" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="settingsTitle">Dashboard Settings</h2>
+      <button class="icon-btn" onclick="closeSettings()" aria-label="Close settings">×</button>
+    </div>
+    <div class="settings-grid">
+      <div class="field"><label for="setTheme">Theme</label><select id="setTheme"><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option></select></div>
+      <div class="field"><label for="setAiInterval">AI interval seconds</label><input id="setAiInterval" type="number" min="60" max="3600" step="30"></div>
+      <div class="field"><label for="setChromeInterval">Chrome interval seconds</label><input id="setChromeInterval" type="number" min="60" max="3600" step="30"></div>
+      <div class="field"><label for="setRamCooldown">RAM cooldown seconds</label><input id="setRamCooldown" type="number" min="60" max="1800" step="30"></div>
+      <div class="field"><label for="setTargetRam">Target available RAM MB</label><input id="setTargetRam" type="number" min="512" max="16384" step="128"></div>
+      <div class="field"><label for="setAutoClean">Auto-clean seconds</label><input id="setAutoClean" type="number" min="300" max="86400" step="60"></div>
+      <div class="field"><label for="setRamPurge">RAM purge seconds</label><input id="setRamPurge" type="number" min="60" max="3600" step="30"></div>
+    </div>
+    <div class="settings-grid" style="margin-top:12px">
+      <label class="check-row"><input type="checkbox" id="showAI"> AI recommendations</label>
+      <label class="check-row"><input type="checkbox" id="showChrome"> Chrome tab optimizer</label>
+      <label class="check-row"><input type="checkbox" id="showGarbage"> Garbage breakdown</label>
+      <label class="check-row"><input type="checkbox" id="showRam"> RAM breakdown</label>
+      <label class="check-row"><input type="checkbox" id="showRules"> Rule recommendations</label>
+      <label class="check-row"><input type="checkbox" id="showHistory"> Cleanup history</label>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <button class="btn" onclick="closeSettings()">Cancel</button>
+      <button class="btn primary" onclick="saveSettings()">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<div class="section" id="garbageSection">
+  <h2>Garbage Breakdown</h2>
+  <table>
+    <thead><tr><th>Name</th><th>Category</th><th style="text-align:right">Size</th></tr></thead>
+    <tbody id="garbageBody"><tr><td colspan="3" style="color:var(--dim)">Click "Scan Now" to scan...</td></tr></tbody>
+  </table>
+</div>
+
+<div class="section" id="ramSection">
+  <h2>RAM Breakdown — Where Your 18 GB Goes</h2>
+  <div id="ramSummaryBar" style="display:flex;height:24px;border-radius:6px;overflow:hidden;margin-bottom:12px;gap:2px"></div>
+  <div id="ramSummaryText" style="font-size:12px;color:var(--dim);margin-bottom:16px"></div>
+  <table>
+    <thead><tr><th>Process</th><th>Type</th><th>Status</th><th style="text-align:right">Memory</th><th>Suggestion</th></tr></thead>
+    <tbody id="processBody"><tr><td colspan="5" style="color:var(--dim)">Loading...</td></tr></tbody>
+  </table>
+</div>
+
+<div class="section" id="suggestionsSection" style="display:none;border-color:var(--yellow)">
+  <h2 style="color:var(--yellow)">Recommendations to Free RAM</h2>
+  <div id="suggestionsBody"></div>
+</div>
+
+<div class="section" id="historySection">
+  <h2>Cleanup History</h2>
+  <div id="historyBody"><div class="history-item" style="color:var(--dim)">No cleanups yet</div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/assets/dashboard_common.js"></script>
+<script src="/assets/dashboard_actions.js"></script>
+<script src="/assets/dashboard_processes.js"></script>
+<script src="/assets/dashboard_boot.js"></script>
+
+</body>
+</html>
