@@ -2,7 +2,7 @@
 stream_id: stream-open-source-release
 slug: open-source-release
 type: chore
-status: in-progress
+status: done
 agent_owner: codex
 domain_slugs: [storage-cleanup, memory-optimization, local-dashboard, ai-assistant]
 repo_ids: [mac-cleaner]
@@ -10,7 +10,7 @@ base_branch: main
 git_branch: main
 created_at: 2026-04-29
 updated_at: 2026-04-29
-closure_approved: false
+closure_approved: true
 ---
 
 # open-source-release
