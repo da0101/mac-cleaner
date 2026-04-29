@@ -1,0 +1,4 @@
+#!/bin/bash
+# Quick launcher for Mac Cleaner
+cd "$(dirname "$0")"
+python3 cleaner.py "$@"

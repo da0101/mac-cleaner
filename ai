@@ -1,0 +1,4 @@
+#!/bin/bash
+# Launch Mac Cleaner AI Assistant
+cd "$(dirname "$0")"
+python3 ai_cleaner.py
