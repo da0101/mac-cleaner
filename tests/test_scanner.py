@@ -34,6 +34,34 @@ class ScannerTests(unittest.TestCase):
             self.assertFalse(app_support["cleanable"])
             self.assertEqual(app_support["safety"], "never-default-delete")
 
+    def test_pub_cache_is_report_only_development_store(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            home = Path(tmpdir)
+            write_bytes(home / ".pub-cache/hosted/pub.dev/example-1.0.0/lib/example.dart", 2048)
+
+            items = scanner.scan_known_items(home=home, min_size=1)
+
+            pub_cache = next(i for i in items if i["name"] == "Dart pub cache")
+            self.assertFalse(pub_cache["cleanable"])
+            self.assertEqual(pub_cache["safety"], "never-default-delete")
+            self.assertIn("package store", pub_cache["reason"])
+
+    def test_clean_scan_item_refuses_pub_cache_even_if_marked_cleanable(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pub_cache = Path(tmpdir) / ".pub-cache"
+            package_file = pub_cache / "hosted/pub.dev/example-1.0.0/lib/example.dart"
+            write_bytes(package_file, 2048)
+            stale_item = {
+                "name": "Dart pub cache",
+                "path": str(pub_cache),
+                "cleanable": True,
+            }
+
+            cleaned = scanner.clean_scan_item(stale_item)
+
+            self.assertEqual(cleaned, 0)
+            self.assertTrue(package_file.exists())
+
     def test_clean_scan_item_refuses_report_only_item(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "Library/Application Support/App/data.bin"

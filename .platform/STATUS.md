@@ -1,6 +1,6 @@
 # mac-cleaner — Current Status
 
-Last updated: 2026-04-29
+Last updated: 2026-04-30
 
 > Local macOS storage and RAM optimizer for garbage files, caches, System Data visibility, and developer-machine hygiene.
 
@@ -9,7 +9,7 @@ Last updated: 2026-04-29
 | Area | Status | Last touched | Notes |
 |---|---|---|---|
 | CLI storage scanner | 🔵 Exists | 2026-04-29 | `cleaner.py` scans known cache/log/dev artifact paths and prompts before cleanup. |
-| Shared scanner | 🔵 Exists | 2026-04-29 | `scanner.py` centralizes targets, safety tiers, allocated disk sizing, and report-only System Data discovery. |
+| Shared scanner | 🔵 Exists | 2026-04-30 | `scanner.py` centralizes targets, safety tiers, allocated disk sizing, protected development stores, and report-only System Data discovery. |
 | Local dashboard | 🔵 Exists | 2026-04-29 | `server.py` is a thin entrypoint; `mac_cleaner_server/` serves localhost dashboard/API on port 3333 and defaults to scan-only. |
 | RAM/process optimizer | 🔵 Exists | 2026-04-29 | Shows available RAM, top process groups, and protected developer tools. |
 | Background AI optimizer | ✓ Done | 2026-04-29 | Optional `./start --ai` Gemini advisor shows dashboard recommendations and may auto-run safe RAM purge only; close/delete actions remain confirmation-gated. |
@@ -26,3 +26,4 @@ Last updated: 2026-04-29
 - Developer tools and terminal sessions must never be killed automatically.
 - System Data is a report-only discovery bucket unless a child path is explicitly classified safe.
 - Sparse VM/container files must use allocated disk usage, not apparent size.
+- `~/.pub-cache` is a Dart/Flutter package store and must stay report-only; deleting it can break active Flutter builds and globally activated tools.

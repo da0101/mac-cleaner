@@ -24,4 +24,4 @@ Finds known cleanable garbage and reports mixed System Data contributors.
 - System Data parent paths are report-only.
 - Sizes use allocated blocks so sparse VM/container files are not overcounted.
 - Never default-delete user documents, source repos, credentials, app support databases, or unknown data.
-
+- Dart/Flutter's global Pub package store (`~/.pub-cache`) is report-only/protected; use Pub/Flutter commands for maintenance instead of deleting it from mac-cleaner.

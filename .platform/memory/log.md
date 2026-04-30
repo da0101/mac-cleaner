@@ -1,5 +1,7 @@
 # Session Log
 
+2026-04-30 — pub-cache-protection — protected Dart/Flutter Pub cache from scanner cleanup — package stores are not disposable caches during active development.
+
 2026-04-29 — server-refactor — split `server.py` into `mac_cleaner_server/` modules and static dashboard assets — small entrypoint, behavior preserved.
 
 2026-04-29 — background-ai-optimizer — added optional Gemini dashboard advisor with local validation — AI recommends, local code gates actions.
@@ -15,3 +17,5 @@
 2026-04-29 — closed stream browser-tab-optimizer → ./.platform/work/archive/browser-tab-optimizer.md (by danilulmashev)
 
 - 2026-04-29 — commit `8df1848`: Add AI optimizers and split dashboard server — auto-logged
+
+- 2026-04-30 — commit `3a90ef6`: Protect Dart pub cache from cleanup — auto-logged

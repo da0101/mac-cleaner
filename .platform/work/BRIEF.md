@@ -1,30 +1,25 @@
 # Feature Brief — mac-cleaner
 
-**Feature:** Server refactor
+**Feature:** Pub cache protection
 **Status:** closure-review
-**Stream file:** `work/server-refactor.md`
+**Stream file:** `work/pub-cache-protection.md`
 
 ## What we're building
 
-Break the 2,000+ line `server.py` monolith into focused modules while preserving the local dashboard, cleanup APIs, AI advisor, Chrome tab optimizer, and launcher behavior.
+Prevent mac-cleaner from deleting Dart/Flutter's global Pub package cache while keeping the storage usage visible.
 
 ## Why
 
-The current server file mixes state, settings, scanning, memory/process analysis, AI, Chrome tabs, HTML/JS/CSS, HTTP routing, and startup loops, making future changes risky.
+`~/.pub-cache` is a shared development package store. Removing it during active Flutter work can break builds, hot restart, and globally activated tools.
 
 ## Done looks like
 
-- `server.py` becomes a thin entrypoint/router surface.
-- Related behavior moves into cohesive modules with tests updated.
-- Existing commands and dashboard endpoints continue working.
+- `~/.pub-cache` is report-only/non-cleanable.
+- Cleanup code refuses `.pub-cache` even if passed stale cleanable metadata.
+- Scanner regression tests cover the policy.
 
 ## Relevant context
 
-- `.platform/domains/server-refactor.md`
-- `.platform/domains/local-dashboard.md`
-- `.platform/domains/memory-optimization.md`
 - `.platform/domains/storage-cleanup.md`
-- `.platform/domains/background-ai-optimizer.md`
-- `.platform/domains/browser-tab-optimizer.md`
 - `.platform/conventions/security.md`
 - `.platform/conventions/testing.md`

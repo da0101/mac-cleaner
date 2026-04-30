@@ -4,8 +4,9 @@ Local macOS cleanup and RAM visibility tool for developers.
 
 mac-cleaner scans known cache/log/development artifact locations, reports large macOS System Data contributors, and shows RAM/process pressure without automatically killing active work.
 
-## What's New in v1.1.0
+## What's New in v1.1.1
 
+- Bug fix: Dart/Flutter's global Pub package store (`~/.pub-cache`) is now report-only protected storage and cleanup refuses to delete it.
 - Gemini-backed dashboard recommendations with `--ai` for automatic safe RAM purge and `--ai-advisory` for recommendations only.
 - Chrome Tab Optimizer that inspects local Chrome tab metadata, ranks likely duplicate/media/converter tabs, and requires confirmation before closing.
 - Dashboard settings modal with persisted `settings.json` controls for refresh intervals, target available RAM, auto-clean timing, visible widgets, and dark/light/system theme.
@@ -112,7 +113,8 @@ cp .env.example .env
 - `~/Library/Caches`
 - user/system logs
 - browser caches
-- npm/Yarn/pnpm/pip/Homebrew/Gradle/Dart/CocoaPods caches
+- npm/Yarn/pnpm/pip/Homebrew/Gradle/CocoaPods caches
+- Dart/Flutter Pub package store as report-only protected storage
 - Xcode DerivedData, archives, iOS Device Support, simulator caches
 - VS Code/Cursor caches and logs
 - Slack/Teams/Spotify caches
@@ -134,7 +136,7 @@ The local dashboard server now lives in focused modules under `mac_cleaner_serve
 
 ## Release Status
 
-`v1.1.0` adds the background Gemini optimizer, Chrome tab recommendations, persistent dashboard settings, light/dark mode, and the split server package. Destructive storage cleanup and Chrome tab closing remain confirmation-based. The separate `./ai` terminal assistant is still legacy OpenAI-based.
+`v1.1.1` protects Dart/Flutter's `~/.pub-cache` package store from cleanup. `v1.1.0` added the background Gemini optimizer, Chrome tab recommendations, persistent dashboard settings, light/dark mode, and the split server package. Destructive storage cleanup and Chrome tab closing remain confirmation-based. The separate `./ai` terminal assistant is still legacy OpenAI-based.
 
 ## License
 

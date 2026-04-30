@@ -1,6 +1,6 @@
 # mac-cleaner — Architecture
 
-Last updated: 2026-04-29
+Last updated: 2026-04-30
 
 ## What this system does
 
@@ -39,6 +39,7 @@ tests/                    -> unittest scanner coverage
 6. Secrets live in `.env` and are never committed, printed, or logged.
 7. Background AI may auto-run safe RAM purge only; local code validates recommendations and confirmations before any close/delete actions.
 8. Chrome tab closing uses fresh snapshot validation and per-tab confirmation.
+9. Shared developer package stores such as Dart/Flutter's `~/.pub-cache` are report-only unless maintained through their own package-manager commands.
 
 ## Known debt
 
