@@ -1,0 +1,53 @@
+#!/bin/bash
+set -euo pipefail
+
+LABEL="com.mac-cleaner.menubar"
+PLIST_DIR="${HOME}/Library/LaunchAgents"
+PLIST="${PLIST_DIR}/${LABEL}.plist"
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PYTHON="$(command -v python3)"
+SCRIPT="${PROJECT_DIR}/menubar.py"
+
+# Ensure rumps is installed
+if ! "$PYTHON" -c "import rumps" 2>/dev/null; then
+  echo "Installing rumps..."
+  "$PYTHON" -m pip install rumps --break-system-packages --quiet
+fi
+
+mkdir -p "$PLIST_DIR"
+
+cat > "$PLIST" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${PYTHON}</string>
+        <string>${SCRIPT}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>${HOME}/Library/Logs/mac-cleaner-menubar.log</string>
+    <key>StandardErrorPath</key>
+    <string>${HOME}/Library/Logs/mac-cleaner-menubar.log</string>
+</dict>
+</plist>
+EOF
+
+# Unload existing instance if running
+launchctl unload "$PLIST" 2>/dev/null || true
+
+# Load the new agent
+launchctl load "$PLIST"
+
+echo "Menubar widget registered as Launch Agent."
+echo "It will start now and automatically on every login."
+echo
+echo "To stop it:    ./menubar-uninstall"
+echo "Logs:          tail -f ~/Library/Logs/mac-cleaner-menubar.log"
