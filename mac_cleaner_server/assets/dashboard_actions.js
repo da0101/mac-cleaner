@@ -14,18 +14,18 @@ async function loadStatus() {
     // System info
     const info = data.system;
     if (info) {
+      const free = info.free_ram || 0;
       const available = info.available_ram || info.free_ram || 0;
-      const freeMB = Math.round((info.free_ram || 0) / 1024**2);
-      const availableMB = Math.round(available / 1024**2);
       const totalRamGB = (info.total_ram / 1024**3).toFixed(1);
       const ramPct = info.total_ram ? Math.round((1 - available/info.total_ram)*100) : 0;
-      // Show MB when under 1GB, GB otherwise
-      const availableStr = availableMB < 1024 ? availableMB + ' MB' : (availableMB/1024).toFixed(1) + ' GB';
-      document.getElementById('freeRam').textContent = availableStr;
-      document.getElementById('freeRam').style.color = availableMB < 1024 ? 'var(--yellow)' : 'var(--green)';
+      const freeEl = document.getElementById('memoryFree');
+      const availableEl = document.getElementById('memoryAvailable');
+      freeEl.textContent = formatMemoryValue(free);
+      freeEl.style.color = memoryPressureColor(free);
+      availableEl.textContent = formatMemoryValue(available);
       document.getElementById('ramBar').style.width = ramPct + '%';
       document.getElementById('ramBar').style.background = ramPct > 95 ? 'var(--red)' : ramPct > 85 ? 'var(--yellow)' : 'var(--green)';
-      document.getElementById('ramSub').textContent = ramPct + '% pressure footprint of ' + totalRamGB + ' GB; raw free ' + freeMB + ' MB';
+      document.getElementById('ramSub').textContent = ramPct + '% pressure footprint of ' + totalRamGB + ' GB';
       // Breakdown
       const appGB = (info.ram_app / 1024**3).toFixed(1);
       const wiredGB = (info.ram_wired / 1024**3).toFixed(1);
@@ -44,6 +44,18 @@ async function loadStatus() {
       document.getElementById('lastCleanSub').textContent = formatDate(data.last_clean);
     }
   } catch(e) { console.error(e); }
+}
+
+function memoryPressureColor(freeBytes) {
+  const gib = 1024 ** 3;
+  if (freeBytes >= 4 * gib) return 'var(--green)';
+  if (freeBytes >= 2 * gib) return 'var(--yellow)';
+  return 'var(--red)';
+}
+
+function formatMemoryValue(bytes) {
+  if (bytes >= 1024 ** 3) return (bytes / 1024 ** 3).toFixed(1) + ' GB';
+  return Math.round(bytes / 1024 ** 2) + ' MB';
 }
 
 async function scanNow() {

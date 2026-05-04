@@ -4,8 +4,12 @@ Local macOS cleanup and RAM visibility tool for developers.
 
 mac-cleaner scans known cache/log/development artifact locations, reports large macOS System Data contributors, and shows RAM/process pressure without automatically killing active work.
 
-## What's New in v1.1.1
+## What's New in v1.2.1
 
+- Bug fix: terminal startup restored a branded Mac Cleaner splash without the internal server label.
+- Bug fix: dashboard memory now matches the menu bar by showing raw free RAM and available RAM together.
+- Bug fix: the menu bar RAM module is vertical, wider, and more visible, with corrected MB/GB labels.
+- `v1.2.0` added the macOS menu bar RAM widget with free/available memory status.
 - Bug fix: Dart/Flutter's global Pub package store (`~/.pub-cache`) is now report-only protected storage and cleanup refuses to delete it.
 - Gemini-backed dashboard recommendations with `--ai` for automatic safe RAM purge and `--ai-advisory` for recommendations only.
 - Chrome Tab Optimizer that inspects local Chrome tab metadata, ranks likely duplicate/media/converter tabs, and requires confirmation before closing.
@@ -136,7 +140,7 @@ The local dashboard server now lives in focused modules under `mac_cleaner_serve
 
 ## Release Status
 
-`v1.1.1` protects Dart/Flutter's `~/.pub-cache` package store from cleanup. `v1.1.0` added the background Gemini optimizer, Chrome tab recommendations, persistent dashboard settings, light/dark mode, and the split server package. Destructive storage cleanup and Chrome tab closing remain confirmation-based. The separate `./ai` terminal assistant is still legacy OpenAI-based.
+`v1.2.1` fixes the terminal startup splash, dashboard memory card, and menu bar RAM widget visuals. `v1.2.0` added the macOS menu bar RAM widget. `v1.1.1` protects Dart/Flutter's `~/.pub-cache` package store from cleanup. `v1.1.0` added the background Gemini optimizer, Chrome tab recommendations, persistent dashboard settings, light/dark mode, and the split server package. Destructive storage cleanup and Chrome tab closing remain confirmation-based. The separate `./ai` terminal assistant is still legacy OpenAI-based.
 
 ## License
 

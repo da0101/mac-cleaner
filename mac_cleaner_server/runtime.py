@@ -17,16 +17,19 @@ from .state import PORT, load_history, load_settings, parse_args, state
 from .storage import scan_garbage
 from .system import fmt_size, get_system_info
 
+
 def print_startup_banner():
+    ai_mode = "auto RAM" if state["ai_auto_optimize"] else "advisory" if state["ai_enabled"] else "disabled"
     print(f"""
-[96m[1m
-  ╔══════════════════════════════════════════════╗
-  ║         MAC CLEANER SERVER v1.1              ║
-  ║   Dashboard:  http://localhost:{PORT}          ║
-  ║   Auto-clean: disabled by default            ║
-  ║   AI mode: {'auto RAM' if state["ai_auto_optimize"] else 'advisory' if state["ai_enabled"] else 'disabled'}                         ║
-  ╚══════════════════════════════════════════════╝
-[0m""")
+\033[38;5;40m    __  ___            \033[38;5;39m ________                         
+\033[38;5;40m   /  |/  /___ ______  \033[38;5;39m/ ____/ /__  ____ _____  ___  _____
+\033[38;5;40m  / /|_/ / __ `/ ___/ \033[38;5;39m/ /   / / _ \\/ __ `/ __ \\/ _ \\/ ___/
+\033[38;5;46m / /  / / /_/ / /__  \033[38;5;81m/ /___/ /  __/ /_/ / / / /  __/ /    
+\033[38;5;46m/_/  /_/\\__,_/\\___/  \033[38;5;81m\\____/_/\\___/\\__,_/_/ /_/\\___/_/     
+
+\033[2m  Mac Cleaner v1.2.1 local dashboard\033[0m  \033[38;5;39mhttp://localhost:{PORT}\033[0m
+  \033[2mauto-clean:\033[0m disabled by default   \033[2mai mode:\033[0m {ai_mode}
+""")
 
 
 def print_initial_status():

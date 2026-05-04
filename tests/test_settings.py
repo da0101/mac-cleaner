@@ -1,7 +1,10 @@
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 
+from mac_cleaner_server import runtime
 from mac_cleaner_server import state as server_state
 from mac_cleaner_server.dashboard import get_dashboard_asset, get_dashboard_html
 
@@ -59,6 +62,27 @@ class SettingsTests(unittest.TestCase):
 
         self.assertLess(actions, ai)
         self.assertLess(actions, chrome)
+
+    def test_startup_banner_uses_app_brand_not_internal_server_label(self):
+        out = StringIO()
+
+        with redirect_stdout(out):
+            runtime.print_startup_banner()
+
+        banner = out.getvalue()
+        self.assertIn("Mac Cleaner", banner)
+        self.assertIn("dashboard", banner)
+        self.assertNotIn("MAC CLEANER SERVER", banner)
+
+    def test_dashboard_memory_card_matches_menu_bar_free_available_model(self):
+        html = get_dashboard_html()
+        js, _ = get_dashboard_asset("dashboard_actions.js")
+
+        self.assertIn('id="memoryFree"', html)
+        self.assertIn('id="memoryAvailable"', html)
+        self.assertIn("memoryPressureColor", js)
+        self.assertIn("4 * gib", js)
+        self.assertIn("2 * gib", js)
 
 
 if __name__ == "__main__":

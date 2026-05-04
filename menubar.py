@@ -59,57 +59,43 @@ def _ram_color(free_bytes: int) -> NSColor:
 
 def _draw_chip(fill_ratio: float, fill_color: NSColor) -> NSImage:
     """
-    Draw a RAM chip icon with a proportional fill bar inside.
-
-    Anatomy (22 × 14 pt):
-
-      |  |  |         ← top pins (3)
-    ┌─────────────┐
-    │ ████░░░░░░░ │   ← fill bar (left-to-right, fill_ratio wide)
-    └─────────────┘
-      |  |  |         ← bottom pins (3)
+    Draw a vertical RAM module with a proportional fill bar inside.
     """
-    W, H = 22.0, 14.0
+    W, H = 14.0, 16.0
     image = NSImage.alloc().initWithSize_(NSMakeSize(W, H))
     image.lockFocus()
     try:
         label  = NSColor.labelColor()
         subtle = NSColor.colorWithWhite_alpha_(0.5, 0.13)
 
-        # ── Body ──────────────────────────────────────────────────────────
         body = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-            NSMakeRect(0.75, 2.5, W - 1.5, H - 5.0), 1.5, 1.5
+            NSMakeRect(2.2, 0.8, W - 4.0, H - 1.6), 1.8, 1.8
         )
         subtle.setFill()
         body.fill()
 
-        # ── Fill bar ──────────────────────────────────────────────────────
-        pad    = 2.5
-        max_fw = W - 1.5 - pad * 2
-        fw     = max(0.0, max_fw * min(max(fill_ratio, 0.0), 1.0))
-        if fw > 0.8:
+        pad    = 1.5
+        max_fh = H - 1.6 - pad * 2
+        fh     = max(0.0, max_fh * min(max(fill_ratio, 0.0), 1.0))
+        if fh > 0.8:
             fill_bar = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-                NSMakeRect(0.75 + pad, 2.5 + pad, fw, H - 5.0 - pad * 2),
-                1.0, 1.0,
+                NSMakeRect(2.2 + pad, 0.8 + pad, W - 4.0 - pad * 2, fh),
+                1.2, 1.2,
             )
-            fill_color.colorWithAlphaComponent_(0.88).setFill()
+            fill_color.colorWithAlphaComponent_(0.95).setFill()
             fill_bar.fill()
 
-        # ── Outline ───────────────────────────────────────────────────────
         label.colorWithAlphaComponent_(0.65).setStroke()
-        body.setLineWidth_(0.75)
+        body.setLineWidth_(1.0)
         body.stroke()
 
-        # ── Pins (top + bottom, 3 each) ────────────────────────────────────
-        pins = NSBezierPath.bezierPath()
-        pins.setLineWidth_(1.0)
-        for px in (W * 0.27, W * 0.50, W * 0.73):
-            pins.moveToPoint_((px, H - 2.5))   # top
-            pins.lineToPoint_((px, H - 0.3))
-            pins.moveToPoint_((px, 2.5))        # bottom
-            pins.lineToPoint_((px, 0.3))
-        label.colorWithAlphaComponent_(0.50).setStroke()
-        pins.stroke()
+        contacts = NSBezierPath.bezierPath()
+        contacts.setLineWidth_(0.9)
+        for py in (H * 0.25, H * 0.42, H * 0.59, H * 0.76):
+            contacts.moveToPoint_((2.0, py))
+            contacts.lineToPoint_((0.7, py))
+        label.colorWithAlphaComponent_(0.65).setStroke()
+        contacts.stroke()
 
     except Exception:
         pass
@@ -135,7 +121,7 @@ def _apply_pill_bg(button) -> None:
 # ── Rich attributed title ────────────────────────────────────────────────────
 
 def _num(b: int) -> str:
-    return f"{b / _GB:.1f}" if b >= _GB else f"{b / 1024 ** 2:.0f}M"
+    return f"{b / _GB:.1f} GB" if b >= _GB else f"{b / 1024 ** 2:.0f} MB"
 
 
 def _build_title(free: int, avail: int) -> NSMutableAttributedString:
@@ -155,6 +141,10 @@ def _build_title(free: int, avail: int) -> NSMutableAttributedString:
         chip = _draw_chip(fill_ratio, color)
         att  = NSTextAttachment.alloc().init()
         att.setImage_(chip)
+        try:
+            att.setBounds_(NSMakeRect(0, -3.0, 14.0, 16.0))
+        except Exception:
+            pass
         sym = NSMutableAttributedString.alloc().initWithAttributedString_(
             NSAttributedString.attributedStringWithAttachment_(att)
         )
@@ -177,10 +167,10 @@ def _build_title(free: int, avail: int) -> NSMutableAttributedString:
         )
     )
 
-    # ── "GB Free" label ───────────────────────────────────────────────────
+    # ── "Free" label ──────────────────────────────────────────────────────
     result.appendAttributedString_(
         NSAttributedString.alloc().initWithString_attributes_(
-            " GB Free",
+            " Free",
             {NSForegroundColorAttributeName: faint, NSFontAttributeName: label_font},
         )
     )
@@ -204,14 +194,6 @@ def _build_title(free: int, avail: int) -> NSMutableAttributedString:
         )
     )
 
-    # ── "GB" suffix for available ─────────────────────────────────────────
-    result.appendAttributedString_(
-        NSAttributedString.alloc().initWithString_attributes_(
-            " GB",
-            {NSForegroundColorAttributeName: faint, NSFontAttributeName: label_font},
-        )
-    )
-
     return result
 
 
@@ -219,7 +201,7 @@ def _apply_title(app: rumps.App, free: int, avail: int) -> None:
     try:
         app._nsapp.nsstatusitem.button().setAttributedTitle_(_build_title(free, avail))
     except Exception:
-        app.title = f"{_num(free)} / {_num(avail)} GB"
+        app.title = f"{_num(free)} Free / {_num(avail)}"
 
 
 # ── Server helpers (with standalone fallbacks) ───────────────────────────────

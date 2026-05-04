@@ -374,7 +374,7 @@ def main():
     print(f"""
 {BOLD}{CYAN}
   ╔══════════════════════════════════════════╗
-  ║         MAC CLEANER v1.0                 ║
+  ║         MAC CLEANER v1.2.1               ║
   ║   Local garbage & cache scanner          ║
   ║   Safe cleanup for macOS (M-series)      ║
   ╚══════════════════════════════════════════╝

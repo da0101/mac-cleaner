@@ -1,6 +1,6 @@
 # mac-cleaner — Current Status
 
-Last updated: 2026-04-30
+Last updated: 2026-05-04
 
 > Local macOS storage and RAM optimizer for garbage files, caches, System Data visibility, and developer-machine hygiene.
 
@@ -10,12 +10,12 @@ Last updated: 2026-04-30
 |---|---|---|---|
 | CLI storage scanner | 🔵 Exists | 2026-04-29 | `cleaner.py` scans known cache/log/dev artifact paths and prompts before cleanup. |
 | Shared scanner | 🔵 Exists | 2026-04-30 | `scanner.py` centralizes targets, safety tiers, allocated disk sizing, protected development stores, and report-only System Data discovery. |
-| Local dashboard | 🔵 Exists | 2026-04-29 | `server.py` is a thin entrypoint; `mac_cleaner_server/` serves localhost dashboard/API on port 3333 and defaults to scan-only. |
-| RAM/process optimizer | 🔵 Exists | 2026-04-29 | Shows available RAM, top process groups, and protected developer tools. |
+| Local dashboard | 🔵 Exists | 2026-05-04 | `server.py` is a thin entrypoint; `mac_cleaner_server/` serves localhost dashboard/API on port 3333, defaults to scan-only, and shows the v1.2.1 startup splash. |
+| RAM/process optimizer | 🔵 Exists | 2026-05-04 | Shows available/free RAM, top process groups, protected developer tools, and the v1.2.1 menu bar display fixes. |
 | Background AI optimizer | ✓ Done | 2026-04-29 | Optional `./start --ai` Gemini advisor shows dashboard recommendations and may auto-run safe RAM purge only; close/delete actions remain confirmation-gated. |
 | Browser tab optimizer | ✓ Done | 2026-04-29 | Chrome tab recommendations inspect local tab metadata, including converter/downloader candidates; closing a tab requires confirmation and fresh snapshot validation. |
 | AI assistant | ⚠ Flagged | 2026-04-29 | `ai_cleaner.py` remains legacy OpenAI terminal chat; background advisor uses Gemini separately. |
-| Open-source packaging | ✓ Done | 2026-04-29 | README/license/gitignore/CODEOWNERS added; `main` and `v1.0.0` pushed. Branch protection still needs GitHub settings. |
+| Open-source packaging | ✓ Done | 2026-05-04 | README/license/gitignore/CODEOWNERS added; latest planned bugfix release is `v1.2.1`. Branch protection still needs GitHub settings. |
 
 ## Immediate priorities
 

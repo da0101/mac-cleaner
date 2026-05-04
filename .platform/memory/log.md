@@ -1,5 +1,7 @@
 # Session Log
 
+2026-05-04 - menubar-memory-widget - aligned terminal, dashboard, and menu bar memory displays - raw free RAM and available RAM should stay distinct but visible together.
+
 2026-04-30 — pub-cache-protection — protected Dart/Flutter Pub cache from scanner cleanup — package stores are not disposable caches during active development.
 
 2026-04-29 — server-refactor — split `server.py` into `mac_cleaner_server/` modules and static dashboard assets — small entrypoint, behavior preserved.

@@ -1,25 +1,26 @@
 # Feature Brief — mac-cleaner
 
-**Feature:** Pub cache protection
-**Status:** closure-review
-**Stream file:** `work/pub-cache-protection.md`
+**Feature:** Menu bar and dashboard memory display
+**Status:** in-progress
+**Stream file:** `work/menubar-memory-widget.md`
 
 ## What we're building
 
-Prevent mac-cleaner from deleting Dart/Flutter's global Pub package cache while keeping the storage usage visible.
+Fix display regressions in the local dashboard startup banner, dashboard memory stat card, and macOS menu bar RAM chip.
 
 ## Why
 
-`~/.pub-cache` is a shared development package store. Removing it during active Flutter work can break builds, hot restart, and globally activated tools.
+The dashboard and menu bar should present the same free/available RAM model so low raw free memory is visible without hiding reusable memory.
 
 ## Done looks like
 
-- `~/.pub-cache` is report-only/non-cleanable.
-- Cleanup code refuses `.pub-cache` even if passed stale cleanable metadata.
-- Scanner regression tests cover the policy.
+- Startup banner brands the command as Mac Cleaner without the internal "SERVER" label.
+- Dashboard memory card shows raw free RAM and available RAM together.
+- Dashboard free RAM color thresholds match the menu bar widget.
+- Menu bar RAM icon is drawn as a horizontal module.
 
 ## Relevant context
 
-- `.platform/domains/storage-cleanup.md`
-- `.platform/conventions/security.md`
+- `.platform/domains/memory-optimization.md`
+- `.platform/domains/local-dashboard.md`
 - `.platform/conventions/testing.md`

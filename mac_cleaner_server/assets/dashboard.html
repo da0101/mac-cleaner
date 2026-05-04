@@ -26,8 +26,13 @@
 
 <div class="grid" id="statsGrid">
   <div class="stat-card">
-    <div class="label">Available Memory</div>
-    <div class="value" id="freeRam">—</div>
+    <div class="label">Memory</div>
+    <div class="value memory-value" id="freeRam">
+      <span id="memoryFree">—</span>
+      <span class="memory-unit">Free</span>
+      <span class="memory-sep">/</span>
+      <span id="memoryAvailable">—</span>
+    </div>
     <div class="bar-bg"><div class="bar-fill" id="ramBar" style="width:0%;background:var(--green)"></div></div>
     <div class="sub" id="ramSub"></div>
     <div class="sub" id="ramDetail" style="margin-top:2px"></div>
