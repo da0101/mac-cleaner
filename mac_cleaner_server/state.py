@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 from pathlib import Path
 
 HOME = Path.home()
@@ -57,6 +58,8 @@ state = {
     "ai_enabled": False,
     "ai_auto_optimize": False,
     "last_ai_optimization": None,
+    "next_ram_purge": None,
+    "next_garbage_clean": None,
     "chrome_tabs": None,
     "chrome_tab_recommendations": None,
     "settings": DEFAULT_SETTINGS.copy(),
@@ -117,6 +120,19 @@ def save_settings(settings):
 
 def setting(name):
     return state.get("settings", DEFAULT_SETTINGS).get(name, DEFAULT_SETTINGS[name])
+
+
+def set_auto_clean_schedule(now=None):
+    now = time.time() if now is None else now
+    state["next_ram_purge"] = now + setting("ram_purge_interval_seconds")
+    state["next_garbage_clean"] = now + setting("auto_clean_interval_seconds")
+
+
+def clear_auto_clean_schedule():
+    state["next_ram_purge"] = None
+    state["next_garbage_clean"] = None
+
+
 def load_history():
     if LOG_FILE.exists():
         try:

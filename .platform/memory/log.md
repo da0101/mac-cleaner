@@ -21,3 +21,5 @@
 - 2026-04-29 — commit `8df1848`: Add AI optimizers and split dashboard server — auto-logged
 
 - 2026-04-30 — commit `3a90ef6`: Protect Dart pub cache from cleanup — auto-logged
+
+2026-05-04 — menubar-memory-widget — fixed auto-clean dashboard/widget sync — explicit set/status APIs prevent stale menu state from flipping the server incorrectly.

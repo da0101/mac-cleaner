@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse
 
@@ -13,7 +14,7 @@ from .chrome import close_requested_chrome_tab, refresh_chrome_tab_recommendatio
 from .dashboard import get_dashboard_asset, get_dashboard_html
 from .memory import purge_ram
 from .processes import get_ram_summary
-from .state import save_settings, state
+from .state import clear_auto_clean_schedule, save_settings, set_auto_clean_schedule, state
 from .storage import clean_all_garbage, docker_prune, scan_garbage
 from .system import get_system_info
 
@@ -67,7 +68,8 @@ class CleanerHandler(BaseHTTPRequestHandler):
 
         elif path == "/api/status":
             info = get_system_info()
-            self._json_response({
+            payload = auto_clean_schedule_payload()
+            payload.update({
                 "auto_clean_enabled": state["auto_clean_enabled"],
                 "ai_enabled": state["ai_enabled"],
                 "ai_auto_optimize": state["ai_auto_optimize"],
@@ -79,6 +81,10 @@ class CleanerHandler(BaseHTTPRequestHandler):
                 "system": info,
                 "settings": state["settings"],
             })
+            self._json_response(payload)
+
+        elif path == "/api/auto-clean-status":
+            self._json_response(auto_clean_schedule_payload())
 
         elif path == "/api/settings":
             self._json_response(state["settings"])
@@ -119,6 +125,8 @@ class CleanerHandler(BaseHTTPRequestHandler):
 
         if path == "/api/clean":
             summary = clean_all_garbage()
+            if state["auto_clean_enabled"]:
+                state["next_garbage_clean"] = time.time() + state["settings"]["auto_clean_interval_seconds"]
             self._json_response(summary)
 
         elif path == "/api/docker-prune":
@@ -127,11 +135,17 @@ class CleanerHandler(BaseHTTPRequestHandler):
 
         elif path == "/api/purge-ram":
             success = purge_ram()
+            if state["auto_clean_enabled"]:
+                state["next_ram_purge"] = time.time() + state["settings"]["ram_purge_interval_seconds"]
             self._json_response({"success": success})
 
         elif path == "/api/toggle-auto":
-            state["auto_clean_enabled"] = not state["auto_clean_enabled"]
-            self._json_response({"enabled": state["auto_clean_enabled"]})
+            self._json_response(set_auto_clean_enabled(not state["auto_clean_enabled"]))
+
+        elif path == "/api/auto-clean":
+            payload = self._read_json_body()
+            enabled = bool(payload.get("enabled"))
+            self._json_response(set_auto_clean_enabled(enabled))
 
         elif path == "/api/settings":
             settings = save_settings(self._read_json_body())
@@ -167,3 +181,27 @@ def get_ai_recommendation_response():
         result = fallback_recommendations(get_ai_snapshot(), "AI recommendations are not ready yet.")
         state["ai_recommendations"] = result
     return result
+
+
+def set_auto_clean_enabled(enabled):
+    state["auto_clean_enabled"] = bool(enabled)
+    if state["auto_clean_enabled"]:
+        set_auto_clean_schedule()
+    else:
+        clear_auto_clean_schedule()
+    return auto_clean_schedule_payload()
+
+
+def auto_clean_schedule_payload():
+    if state["auto_clean_enabled"] and (
+        state.get("next_ram_purge") is None or state.get("next_garbage_clean") is None
+    ):
+        set_auto_clean_schedule()
+    return {
+        "enabled": state["auto_clean_enabled"],
+        "auto_clean_enabled": state["auto_clean_enabled"],
+        "next_ram_purge": state.get("next_ram_purge"),
+        "next_garbage_clean": state.get("next_garbage_clean"),
+        "server_time": time.time(),
+        "settings": state["settings"],
+    }

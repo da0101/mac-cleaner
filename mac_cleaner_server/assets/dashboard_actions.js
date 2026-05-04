@@ -9,7 +9,8 @@ async function loadStatus() {
     autoEnabled = data.auto_clean_enabled;
     document.getElementById('autoStatus').textContent = autoEnabled ? 'ON' : 'OFF';
     document.getElementById('autoStatus').className = 'auto-badge ' + (autoEnabled ? 'on' : 'off');
-    document.getElementById('btnToggle').textContent = autoEnabled ? 'Pause Auto-Clean' : 'Resume Auto-Clean';
+    document.getElementById('btnToggle').textContent = autoEnabled ? 'Pause Auto-Clean' : 'Enable Auto-Clean';
+    syncCountdowns(data);
 
     // System info
     const info = data.system;
@@ -58,6 +59,18 @@ function formatMemoryValue(bytes) {
   return Math.round(bytes / 1024 ** 2) + ' MB';
 }
 
+function syncCountdowns(data) {
+  const serverTime = Number(data.server_time || 0);
+  if (!serverTime) return;
+  const now = Date.now();
+  if (data.next_garbage_clean) {
+    nextCleanTime = now + Math.max(0, Number(data.next_garbage_clean) - serverTime) * 1000;
+  }
+  if (data.next_ram_purge) {
+    nextRamPurge = now + Math.max(0, Number(data.next_ram_purge) - serverTime) * 1000;
+  }
+}
+
 async function scanNow() {
   const btn = document.getElementById('btnScan');
   btn.disabled = true;
@@ -103,7 +116,6 @@ async function cleanAll() {
   try {
     const data = await fetchJSON('/api/clean', {method:'POST'});
     toast('Cleaned ' + data.total_cleaned + ' (' + data.items_cleaned + ' items)');
-    nextCleanTime = Date.now() + seconds('auto_clean_interval_seconds', 900) * 1000;
     loadStatus();
     scanNow();
     loadHistory();

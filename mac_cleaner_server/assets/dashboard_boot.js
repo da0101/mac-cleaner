@@ -7,8 +7,8 @@ function resetTimers() {
   timers.push(setInterval(loadAlerts, seconds('dashboard_alert_interval_seconds', 10) * 1000));
   if (shouldPollAI()) timers.push(setInterval(loadAIRecommendations, seconds('ai_recommendation_interval_seconds', 300) * 1000));
   if (shouldPollChromeTabs()) timers.push(setInterval(loadChromeTabs, seconds('chrome_tab_recommendation_interval_seconds', 300) * 1000));
-  nextCleanTime = Date.now() + seconds('auto_clean_interval_seconds', 900) * 1000;
-  nextRamPurge = Date.now() + seconds('ram_purge_interval_seconds', 300) * 1000;
+  if (!nextCleanTime) nextCleanTime = Date.now() + seconds('auto_clean_interval_seconds', 900) * 1000;
+  if (!nextRamPurge) nextRamPurge = Date.now() + seconds('ram_purge_interval_seconds', 300) * 1000;
 }
 
 // Auto-refresh

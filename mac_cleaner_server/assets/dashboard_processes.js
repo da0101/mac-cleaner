@@ -1,10 +1,15 @@
 async function toggleAuto() {
   try {
-    const data = await fetchJSON('/api/toggle-auto', {method:'POST'});
+    const data = await fetchJSON('/api/auto-clean', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({enabled: !autoEnabled})
+    });
     autoEnabled = data.enabled;
+    syncCountdowns(data);
     document.getElementById('autoStatus').textContent = autoEnabled ? 'ON' : 'OFF';
     document.getElementById('autoStatus').className = 'auto-badge ' + (autoEnabled ? 'on' : 'off');
-    document.getElementById('btnToggle').textContent = autoEnabled ? 'Pause Auto-Clean' : 'Resume Auto-Clean';
+    document.getElementById('btnToggle').textContent = autoEnabled ? 'Pause Auto-Clean' : 'Enable Auto-Clean';
     toast('Auto-clean ' + (autoEnabled ? 'enabled' : 'paused'));
   } catch(e) {}
 }

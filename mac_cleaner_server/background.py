@@ -12,8 +12,6 @@ from .system import fmt_size, get_system_info
 
 def auto_clean_loop():
     """Background thread: clean garbage every 15 min, purge RAM every 3 min."""
-    last_ram_purge = 0
-    last_garbage_clean = 0
     while True:
         time.sleep(60)  # Check every minute
         now = time.time()
@@ -28,9 +26,15 @@ def auto_clean_loop():
         else:
             run_ai_auto_memory_optimization(reason="ram-threshold")
 
+        if state["auto_clean_enabled"]:
+            if state.get("next_ram_purge") is None:
+                state["next_ram_purge"] = now + setting("ram_purge_interval_seconds")
+            if state.get("next_garbage_clean") is None:
+                state["next_garbage_clean"] = now + setting("auto_clean_interval_seconds")
+
         # Purge RAM on configured cadence
-        if now - last_ram_purge >= setting("ram_purge_interval_seconds") and state["auto_clean_enabled"]:
-            last_ram_purge = now
+        if state["auto_clean_enabled"] and now >= float(state.get("next_ram_purge") or 0):
+            state["next_ram_purge"] = now + setting("ram_purge_interval_seconds")
             ts = datetime.now().strftime("%H:%M:%S")
 
             # Show RAM before purge
@@ -71,8 +75,8 @@ def auto_clean_loop():
                 print()
 
         # Clean garbage on configured cadence
-        if now - last_garbage_clean >= setting("auto_clean_interval_seconds") and state["auto_clean_enabled"] and not state["cleaning"]:
-            last_garbage_clean = now
+        if state["auto_clean_enabled"] and now >= float(state.get("next_garbage_clean") or 0) and not state["cleaning"]:
+            state["next_garbage_clean"] = now + setting("auto_clean_interval_seconds")
             ts = datetime.now().strftime("%H:%M:%S")
             print(f"  [{ts}] Auto-clean triggered...")
             summary = clean_all_garbage()

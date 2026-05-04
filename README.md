@@ -4,11 +4,15 @@ Local macOS cleanup and RAM visibility tool for developers.
 
 mac-cleaner scans known cache/log/development artifact locations, reports large macOS System Data contributors, and shows RAM/process pressure without automatically killing active work.
 
-## What's New in v1.2.1
+## What's New in v1.3.0
 
+- Minor release: menu bar widget now shows readable grouped memory/cleanup stats, top memory consumers, garbage accumulation, and dashboard actions.
+- Bug fix: dashboard and menu bar auto-clean timers now sync from the same server schedule.
+- Bug fix: widget auto-clean enable/pause now sets the intended state explicitly instead of relying on stale toggle state.
 - Bug fix: terminal startup restored a branded Mac Cleaner splash without the internal server label.
 - Bug fix: dashboard memory now matches the menu bar by showing raw free RAM and available RAM together.
 - Bug fix: the menu bar RAM module is vertical, wider, and more visible, with corrected MB/GB labels.
+- `v1.2.1` fixed the terminal splash, dashboard memory card, and menu bar RAM widget visuals.
 - `v1.2.0` added the macOS menu bar RAM widget with free/available memory status.
 - Bug fix: Dart/Flutter's global Pub package store (`~/.pub-cache`) is now report-only protected storage and cleanup refuses to delete it.
 - Gemini-backed dashboard recommendations with `--ai` for automatic safe RAM purge and `--ai-advisory` for recommendations only.
@@ -140,7 +144,7 @@ The local dashboard server now lives in focused modules under `mac_cleaner_serve
 
 ## Release Status
 
-`v1.2.1` fixes the terminal startup splash, dashboard memory card, and menu bar RAM widget visuals. `v1.2.0` added the macOS menu bar RAM widget. `v1.1.1` protects Dart/Flutter's `~/.pub-cache` package store from cleanup. `v1.1.0` added the background Gemini optimizer, Chrome tab recommendations, persistent dashboard settings, light/dark mode, and the split server package. Destructive storage cleanup and Chrome tab closing remain confirmation-based. The separate `./ai` terminal assistant is still legacy OpenAI-based.
+`v1.3.0` adds the expanded menu bar stats/actions panel and fixes dashboard/widget auto-clean timer sync. `v1.2.1` fixed the terminal startup splash, dashboard memory card, and menu bar RAM widget visuals. `v1.2.0` added the macOS menu bar RAM widget. `v1.1.1` protects Dart/Flutter's `~/.pub-cache` package store from cleanup. `v1.1.0` added the background Gemini optimizer, Chrome tab recommendations, persistent dashboard settings, light/dark mode, and the split server package. Destructive storage cleanup and Chrome tab closing remain confirmation-based. The separate `./ai` terminal assistant is still legacy OpenAI-based.
 
 ## License
 

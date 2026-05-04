@@ -27,7 +27,7 @@ def print_startup_banner():
 \033[38;5;46m / /  / / /_/ / /__  \033[38;5;81m/ /___/ /  __/ /_/ / / / /  __/ /    
 \033[38;5;46m/_/  /_/\\__,_/\\___/  \033[38;5;81m\\____/_/\\___/\\__,_/_/ /_/\\___/_/     
 
-\033[2m  Mac Cleaner v1.2.1 local dashboard\033[0m  \033[38;5;39mhttp://localhost:{PORT}\033[0m
+\033[2m  Mac Cleaner v1.3.0 local dashboard\033[0m  \033[38;5;39mhttp://localhost:{PORT}\033[0m
   \033[2mauto-clean:\033[0m disabled by default   \033[2mai mode:\033[0m {ai_mode}
 """)
 
