@@ -23,3 +23,5 @@
 - 2026-04-30 — commit `3a90ef6`: Protect Dart pub cache from cleanup — auto-logged
 
 2026-05-04 — menubar-memory-widget — fixed auto-clean dashboard/widget sync — explicit set/status APIs prevent stale menu state from flipping the server incorrectly.
+
+- 2026-05-04 — commit `7e0af3e`: Release v1.3.0 menu bar sync — auto-logged
