@@ -1,0 +1,49 @@
+name: Rust replacement
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: aarch64-apple-darwin
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.17.0
+          cache: npm
+          cache-dependency-path: apps/mac-cleaner-desktop/ui/package-lock.json
+      - name: Install locked frontend dependencies
+        run: npm ci --prefix apps/mac-cleaner-desktop/ui
+      - name: Audit frontend dependencies
+        run: npm audit --prefix apps/mac-cleaner-desktop/ui --audit-level=moderate
+      - name: Test and build bundled interface
+        run: |
+          npm test --prefix apps/mac-cleaner-desktop/ui
+          npm run build --prefix apps/mac-cleaner-desktop/ui
+      - name: Check Rust formatting
+        run: cargo fmt --all --check
+      - name: Lint every Rust target
+        run: cargo clippy --workspace --all-targets --target ${{ matrix.target }} -- -D warnings
+      - name: Run Rust tests
+        run: cargo test --workspace --target ${{ matrix.target }}
+      - name: Build native binaries
+        run: cargo build --workspace --target ${{ matrix.target }}

@@ -1,150 +1,113 @@
-# mac-cleaner
+# Mac Cleaner 2
 
-Local macOS cleanup and RAM visibility tool for developers.
+Mac Cleaner is a conservative macOS storage and system monitor for developers. Version 2 is a Rust rewrite with a native Tauri menu-bar app, a shared Rust CLI, and a deliberately small cleanup policy.
 
-mac-cleaner scans known cache/log/development artifact locations, reports large macOS System Data contributors, and shows RAM/process pressure without automatically killing active work.
+This branch is an alpha release candidate. It does not require Python, pip, a virtual environment, or a Node runtime after packaging. The Python version on `main` remains the rollback reference until the release gates are complete.
 
-## What's New in v1.3.0
+## Safety model
 
-- Minor release: menu bar widget now shows readable grouped memory/cleanup stats, top memory consumers, garbage accumulation, and dashboard actions.
-- Bug fix: dashboard and menu bar auto-clean timers now sync from the same server schedule.
-- Bug fix: widget auto-clean enable/pause now sets the intended state explicitly instead of relying on stale toggle state.
-- Bug fix: terminal startup restored a branded Mac Cleaner splash without the internal server label.
-- Bug fix: dashboard memory now matches the menu bar by showing raw free RAM and available RAM together.
-- Bug fix: the menu bar RAM module is vertical, wider, and more visible, with corrected MB/GB labels.
-- `v1.2.1` fixed the terminal splash, dashboard memory card, and menu bar RAM widget visuals.
-- `v1.2.0` added the macOS menu bar RAM widget with free/available memory status.
-- Bug fix: Dart/Flutter's global Pub package store (`~/.pub-cache`) is now report-only protected storage and cleanup refuses to delete it.
-- Gemini-backed dashboard recommendations with `--ai` for automatic safe RAM purge and `--ai-advisory` for recommendations only.
-- Chrome Tab Optimizer that inspects local Chrome tab metadata, ranks likely duplicate/media/converter tabs, and requires confirmation before closing.
-- Dashboard settings modal with persisted `settings.json` controls for refresh intervals, target available RAM, auto-clean timing, visible widgets, and dark/light/system theme.
-- Primary cleanup controls now stay at the top of the dashboard for fast scan, clean, Docker prune, RAM purge, and auto-clean toggling.
-- The 2,000+ line dashboard server was split into the `mac_cleaner_server/` package so future cleanup, memory, AI, Chrome, and UI work is easier to maintain.
-- macOS memory reporting now emphasizes available/reusable RAM instead of raw free pages.
+Mac Cleaner never accepts a filesystem path from the interface or CLI cleanup executor. Rust discovers candidates from a compiled, versioned catalog and issues opaque candidate IDs. Every mutation follows this boundary:
 
-## Safety Model
+1. Run a read-only scan.
+2. Select exact candidate IDs.
+3. Review a short-lived plan with every path, size, reason, and recovery method.
+4. Confirm the exact plan in a native dialog or by typing its UUID in the CLI.
+5. Revalidate device, inode, type, size, mtime, link count, tree size, mount boundary, and policy immediately before moving anything.
+6. Move the item to private quarantine and journal the result.
+7. Restore it, or permanently purge one exact quarantine entry after another confirmation.
 
-mac-cleaner is intentionally conservative:
+Automatic storage deletion is empty and disabled. A quarantine move does not claim reclaimed space; only a verified purge does.
 
-- Known cache/log/dev artifact paths can be cleaned.
-- Mixed System Data folders are report-only unless a child path is explicitly classified safe.
-- User documents, source repositories, credentials, app databases, keychains, mail, photos, and unknown data are never default-deleted.
-- VS Code, Cursor, terminals, Claude Code, Codex, Gemini, Node, and Python jobs are protected from automatic termination.
-- The dashboard binds to `127.0.0.1`.
-- Chrome tab optimization inspects local tab titles/domains and asks before closing any tab.
+The following are permanently protected:
 
-## Requirements
+- source repositories, Git worktrees, `.git`, project manifests, and lockfiles;
+- GitHub Desktop Application Support, preferences, authentication state, and Keychains;
+- Flutter, Dart, Android, Xcode, Gradle, CocoaPods, and other SDK/toolchain state;
+- `~/.pub-cache`, `~/.gradle`, credentials, databases, documents, photos, and unknown paths;
+- developer processes including editors, terminals, agents, compilers, Flutter/Dart/Gradle, and active jobs.
 
-- macOS
-- Python 3.10+
-- Optional: Docker CLI for Docker storage reporting/pruning
-- Optional: OpenAI/Gemini API keys for the experimental AI assistant
+The process monitor is read-only. The Rust product has no process-signal, force-quit, RAM-purge, DNS-flush, Docker-prune, Chrome-close, or unattended storage-cleanup API.
 
-Install Python dependencies:
+## Initial cleanup catalog
 
-```bash
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install -r requirements.txt
-```
+The first catalog only reviews direct, old children of three exact roots:
 
-Install the `mac-cleaner` command:
+- Mac Cleaner's own cache, older than 24 hours;
+- Xcode DerivedData children, older than 14 days;
+- CocoaPods download-cache children, older than 30 days.
 
-```bash
-./install
-```
+Entries containing project sentinels, symlinks, hard-linked files, special objects, mount crossings, protected paths, or too many descendants are skipped and explained. Mac Cleaner does not sweep `~/Library/Caches`, Application Support, Trash, package stores, or source folders.
 
-## Usage
+## Architecture
 
-Terminal scanner:
+- `cleaner-domain` — typed IDs, plans, receipts, quarantine actions, and snapshots.
+- `cleaner-policy` — compiled allowlist and permanent protections.
+- `cleaner-fs` — bounded scanner and identity-revalidated filesystem actions.
+- `cleaner-system-macos` — read-only memory, disk, and process snapshots.
+- `cleaner-store` — SQLite WAL settings, migration, plans, events, and receipts.
+- `cleaner-service` — single-flight orchestration and cross-process mutation lock.
+- `mac-cleaner-desktop` — Tauri 2 lifecycle, tray, native confirmations, and bundled UI.
+- `mac-cleaner` — Rust CLI linked to the same service and policy.
 
-```bash
-./clean
-```
+The installed app bundles its interface and opens no HTTP listener. Vite binds to `127.0.0.1:1420` only during development. The frontend has no filesystem, shell, process, or arbitrary network capability; it can call only the registered Tauri commands.
 
-Local dashboard:
+## Developer setup
+
+Requirements:
+
+- macOS 13 or newer;
+- Rust 1.96 with `aarch64-apple-darwin` and `x86_64-apple-darwin` targets;
+- Node 22.12 or newer for UI build tooling only;
+- Xcode command-line tools.
 
 ```bash
-./start
-# or, after ./install:
-mac-cleaner
+npm ci --prefix apps/mac-cleaner-desktop/ui
+./scripts/check-rust.sh
+./scripts/dev-rust.sh
 ```
 
-Local dashboard with Gemini AI and automatic safe RAM optimization:
+The developer build cannot register itself as a login item. Launch at login is available only from an installed `.app` bundle and requires a native confirmation.
+
+## CLI
+
+Read-only commands:
 
 ```bash
-cp .env.example .env
-# add GEMINI_API_KEY to .env
-./start --ai
-# or:
-mac-cleaner --ai
+cargo run -p mac-cleaner -- status
+cargo run -p mac-cleaner -- scan
+cargo run -p mac-cleaner -- history
+cargo run -p mac-cleaner -- quarantine list
 ```
 
-Chrome tab optimizer:
-
-```text
-Open the dashboard and use the Chrome Tab Optimizer panel.
-Recommended tabs require confirmation before closing.
-```
-
-Gemini recommendations only, without automatic RAM purge:
+Preview and quarantine exact IDs from a fresh scan:
 
 ```bash
-./start --ai-advisory
-# or:
-mac-cleaner --ai-advisory
+cargo run -p mac-cleaner -- scan
+cargo run -p mac-cleaner -- clean --candidate 'TARGET:HASH'
 ```
 
-Run without background AI:
+Restore or permanently purge one recorded quarantine entry:
 
 ```bash
-./start --no-ai
-# or:
-mac-cleaner --no-ai
+cargo run -p mac-cleaner -- quarantine restore --entry UUID
+cargo run -p mac-cleaner -- quarantine purge --entry UUID
 ```
 
-Then open:
+Every mutating CLI command prints the exact action and requires its generated action UUID to be typed back. Candidate IDs and entry UUIDs are not paths.
 
-```text
-http://localhost:3333
-```
+## Legacy migration
 
-Legacy terminal AI assistant:
+Migration is explicit, copy-only, size-bounded, and idempotent. It imports only allowlisted display/monitor settings and sanitized cleanup summaries; retired destructive automation settings are ignored. Source files are preserved.
 
 ```bash
-cp .env.example .env
-./ai
+cargo run -p mac-cleaner -- migrate --from /absolute/path/to/legacy/mac-cleaner
 ```
 
-## What It Scans
+The legacy Python LaunchAgent is not removed automatically. Startup cutover requires its own reviewed migration step so an installed Rust app and the Python menubar cannot silently compete.
 
-- `~/Library/Caches`
-- user/system logs
-- browser caches
-- npm/Yarn/pnpm/pip/Homebrew/Gradle/CocoaPods caches
-- Dart/Flutter Pub package store as report-only protected storage
-- Xcode DerivedData, archives, iOS Device Support, simulator caches
-- VS Code/Cursor caches and logs
-- Slack/Teams/Spotify caches
-- Trash
-- AI/ML caches
-- Docker storage
-- report-only System Data areas like `~/Library/Application Support`, `~/Library/Containers`, `/private/var/folders`, `/private/var/vm`, and `~/.cache`
+## Packaging
 
-## Development
-
-Run tests:
-
-```bash
-python3 -m unittest
-python3 -m py_compile scanner.py cleaner.py server.py ai_cleaner.py ai_advisor.py browser_tabs.py mac_cleaner_server/*.py
-```
-
-The local dashboard server now lives in focused modules under `mac_cleaner_server/`; keep `server.py` as the thin executable entrypoint.
-
-## Release Status
-
-`v1.3.0` adds the expanded menu bar stats/actions panel and fixes dashboard/widget auto-clean timer sync. `v1.2.1` fixed the terminal startup splash, dashboard memory card, and menu bar RAM widget visuals. `v1.2.0` added the macOS menu bar RAM widget. `v1.1.1` protects Dart/Flutter's `~/.pub-cache` package store from cleanup. `v1.1.0` added the background Gemini optimizer, Chrome tab recommendations, persistent dashboard settings, light/dark mode, and the split server package. Destructive storage cleanup and Chrome tab closing remain confirmation-based. The separate `./ai` terminal assistant is still legacy OpenAI-based.
+`./scripts/build-universal.sh` builds a universal CLI and universal Tauri app. Release distribution is a Developer ID signed and notarized DMG. Signing, notarization, updater credentials, Intel device QA, and upgrade/rollback verification remain release gates and are never bypassed for an alpha build.
 
 ## License
 

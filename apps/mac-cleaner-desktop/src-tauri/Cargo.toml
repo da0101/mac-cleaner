@@ -1,0 +1,34 @@
+[package]
+name = "mac-cleaner-desktop"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2.6", features = [] }
+
+[dependencies]
+anyhow.workspace = true
+cleaner-domain = { path = "../../../crates/cleaner-domain" }
+cleaner-service = { path = "../../../crates/cleaner-service" }
+directories.workspace = true
+objc2 = "0.6"
+objc2-app-kit = "0.3"
+objc2-foundation = "0.3"
+serde.workspace = true
+serde_json.workspace = true
+tauri = { version = "2.11", features = ["tray-icon"] }
+tauri-plugin-autostart = "2.5"
+tauri-plugin-dialog = "2.7"
+tauri-plugin-notification = "2.3"
+tauri-plugin-single-instance = "2.4"
+tokio.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+chrono.workspace = true

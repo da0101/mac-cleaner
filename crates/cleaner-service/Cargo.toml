@@ -1,0 +1,28 @@
+[package]
+name = "cleaner-service"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+chrono.workspace = true
+cleaner-domain = { path = "../cleaner-domain" }
+cleaner-fs = { path = "../cleaner-fs" }
+cleaner-policy = { path = "../cleaner-policy" }
+cleaner-store = { path = "../cleaner-store" }
+cleaner-system-macos = { path = "../cleaner-system-macos" }
+fs2.workspace = true
+parking_lot.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+filetime = "0.2"
+tempfile.workspace = true
+
+[lints]
+workspace = true

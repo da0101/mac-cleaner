@@ -9,6 +9,15 @@ __pycache__/
 .venv/
 venv/
 
+# Rust and build-time web tooling
+target/
+node_modules/
+dist/
+artifacts/
+*.tsbuildinfo
+apps/mac-cleaner-desktop/ui/vite.config.js
+apps/mac-cleaner-desktop/ui/vite.config.d.ts
+
 # Runtime data
 cleanup_history.json
 settings.json
