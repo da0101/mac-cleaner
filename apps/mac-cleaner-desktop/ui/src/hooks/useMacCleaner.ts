@@ -163,6 +163,16 @@ export function useMacCleaner() {
     }
   }
 
+  async function openActivityMonitor() {
+    setError(null);
+    try {
+      await api.openActivityMonitor();
+      setNotice("Opened Activity Monitor. Review Memory Pressure and quit only apps you recognize.");
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  }
+
   async function pruneUvCache() {
     setPhase("executing");
     setToolOperation("uv");
@@ -327,6 +337,7 @@ export function useMacCleaner() {
     analyzeStorage,
     reviewCleanup,
     openStorageOwner,
+    openActivityMonitor,
     pruneUvCache,
     cleanSimulatorRecordings,
     toggleCandidate,

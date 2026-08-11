@@ -43,3 +43,5 @@
 2026-08-11 — simulator-recording-cleanup — owner-confirmed exact-file cleanup removed 453 old verified QuickTime/XCTest recordings and reclaimed 22.5 GB without deleting the simulator, apps, app data, source, or unrelated test results; large manifests require portable JSON integer types and tool receipts must share the visible activity trail.
 
 2026-08-11 — rust-modularity-and-ui — split all entrypoint/orchestration files below 307 lines, fixed comprehensive scan feedback and per-tool busy state, and made the dashboard denser with text-backed green/amber/red/blue semantics; full Rust, Clippy, React, package, and installed-app gates pass.
+
+2026-08-11 — pressure-based-memory-recovery — replaced legacy disk-cache purge and artificial-pressure generation with a 30-second Rust pressure/watchdog model, visible reclaimable/compressed/swap context, rate-limited alerts, ranked unprotected-process guidance, and a user-controlled Activity Monitor handoff; never terminate applications automatically.

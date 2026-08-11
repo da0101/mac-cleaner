@@ -49,3 +49,16 @@ pub(crate) fn open_storage_owner(owner: StorageOwner) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[tauri::command]
+pub(crate) fn open_activity_monitor() -> Result<(), String> {
+    let application = "Activity Monitor";
+    let status = Command::new("/usr/bin/open")
+        .args(["-a", application])
+        .status()
+        .map_err(display_error)?;
+    if !status.success() {
+        return Err("macOS could not open Activity Monitor.".to_owned());
+    }
+    Ok(())
+}

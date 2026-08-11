@@ -12,6 +12,10 @@ export interface MemorySnapshot {
   available_bytes: number;
   used_bytes: number;
   swap_used_bytes: number;
+  reclaimable_bytes: number;
+  compressed_bytes: number;
+  file_backed_bytes: number;
+  pressure: "normal" | "warning" | "critical";
 }
 
 export interface DiskSnapshot {

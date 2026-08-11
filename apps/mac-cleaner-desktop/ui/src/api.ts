@@ -14,6 +14,7 @@ import type {
 
 export const api = {
   getSnapshot: () => invoke<SystemSnapshot>("get_snapshot"),
+  openActivityMonitor: () => invoke<void>("open_activity_monitor"),
   startScan: () => invoke<ScanReport>("start_scan"),
   analyzeStorage: () => invoke<StorageAnalysis>("analyze_storage"),
   openStorageOwner: (owner: StorageOwner) => invoke<void>("open_storage_owner", { owner }),

@@ -33,6 +33,7 @@ closure_approved: false
 - Initial automatic storage-cleanup allowlist is empty.
 - Generic product flow is fixed as analyze → explain → offer reviewed actions → exact preview → user confirmation → verified receipt.
 - Large orchestration/UI/store files are split by responsibility; new capabilities belong in reusable modules rather than monolithic entry points.
+- Memory recovery follows Apple memory-pressure semantics: automatic monitoring and notifications, visible cached/compressed capacity, and user-confirmed process guidance. The app never runs `purge`, generates artificial pressure, or terminates apps automatically.
 
 ## Approved retirements
 
@@ -60,9 +61,9 @@ closure_approved: false
 ## Resume state
 
 - **Last updated:** 2026-08-11 by codex
-- **What just happened:** The owner confirmed an exact 453-file simulator-recording plan and Mac Cleaner permanently removed 22.5 GB of verified old QuickTime/XCTest recordings. The simulator, apps, app data, source code, and other test results remained outside the target. A portable-timestamp serialization regression was fixed, the operation now appears in unified Recent activity, and available storage rose to about 50.2 decimal GB.
-- **Current focus:** Production hardening of the generic analyze → explain → reviewed action → confirmation → receipt flow.
-- **Next action:** Finish startup/update/distribution parity, universal Intel QA, signing/notarization, and the explicit legacy Python cutover audit.
+- **What just happened:** Pressure-based automatic memory recovery shipped in the local Rust app. The 30-second watchdog now classifies normal/warning/critical pressure from conservative available memory and swap, reports reclaimable/compressed/free memory separately, notifies on sustained pressure, ranks unprotected processes, and opens Activity Monitor for an explicitly user-controlled quit. The installed build passed workspace tests, warnings-denied Clippy, frontend tests/build, packaging, CLI smoke QA, and visual QA.
+- **Current focus:** Complete release hardening without weakening the no-automatic-termination or preview-first storage contracts.
+- **Next action:** Verify universal packaging, upgrade/rollback, signing/notarization, and Intel QA when the required credentials and environment are available.
 - **Blockers:** Developer ID/notarization/updater credentials and a physical/hosted Intel QA environment are not available in this workspace.
 
 ## Progress log
@@ -90,6 +91,10 @@ closure_approved: false
 2026-08-11 — Completed the modularity pass: service `lib.rs` fell from 1,200 to 288 lines, store from 543 to 65, domain from 432 to 17, policy from 361 to 16, CLI `main.rs` from 352 to 21, desktop command facade from 430 to 14, and React `App.tsx` from 489 to 67. Cohesive modules preserve the public APIs and safety boundaries.
 
 2026-08-11 — Fixed the 453-item simulator plan failure (`i128 is not supported`) by storing portable nanosecond timestamps as checked `i64` values and added a 500-item SQLite round-trip regression. Owner-confirmed execution then removed 453 verified recordings and reclaimed 22.5 GB. The app now releases its busy state before background re-analysis, removes the stale action immediately, merges tool receipts into Recent activity, attaches native confirmation to the main window, and uses a denser severity-coded UI. Full workspace tests, warnings-denied Clippy, frontend tests/build, debug app packaging, and installed-app visual QA pass.
+
+2026-08-11 — Owner approved pressure-based automatic memory recovery. Audit confirmed the legacy `purge` action only flushed disk buffers and the legacy `memory_pressure -l critical` path deliberately generated memory pressure. The Rust implementation will instead expose cached/compressed memory, monitor pressure and swap automatically, notify on sustained warning/critical states, and present ranked user-confirmed recovery guidance without automatic termination.
+
+2026-08-11 — Completed and installed pressure-based automatic memory recovery. Rust now derives conservative pressure levels from available capacity and swap, exposes reclaimable/compressed/file-backed metrics, refreshes every 30 seconds, rate-limits escalation notifications, and offers fixed Activity Monitor handoff plus ranked unprotected-process guidance. Live QA reported 3.5 GB available, 58.6 MB completely free, 8.4 GB compressed, and normal pressure; the menu independently color-coded RAM and SSD. Full workspace tests, warnings-denied Clippy, frontend tests/build, debug packaging, CLI status, and installed-app visual QA pass.
 
 ## Complexity and risk
 

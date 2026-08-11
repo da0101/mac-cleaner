@@ -10,10 +10,17 @@ pub(crate) async fn run_status(service: &AppService, json: bool) -> Result<()> {
     } else {
         println!("Mac Cleaner — read-only system status");
         println!(
-            "Memory: {} available of {} ({} completely free)",
+            "Memory: {} available of {} ({:?} pressure)",
             format_bytes(snapshot.memory.available_bytes),
             format_bytes(snapshot.memory.total_bytes),
-            format_bytes(snapshot.memory.free_bytes)
+            snapshot.memory.pressure,
+        );
+        println!(
+            "        {} reclaimable, {} compressed, {} swap, {} completely free",
+            format_bytes(snapshot.memory.reclaimable_bytes),
+            format_bytes(snapshot.memory.compressed_bytes),
+            format_bytes(snapshot.memory.swap_used_bytes),
+            format_bytes(snapshot.memory.free_bytes),
         );
         println!(
             "Disk:   {} available of {}",

@@ -1,13 +1,31 @@
-import { MonitorCog } from "lucide-react";
+import { ExternalLink, MonitorCog, ShieldAlert } from "lucide-react";
 import { formatBytes, processMemorySeverity } from "../format";
 import type { SystemSnapshot } from "../types";
 
-export function ProcessMonitor({ snapshot }: { snapshot: SystemSnapshot | null }) {
+interface Props {
+  snapshot: SystemSnapshot | null;
+  onOpenActivityMonitor: () => Promise<void>;
+}
+
+export function ProcessMonitor({ snapshot, onOpenActivityMonitor }: Props) {
+  const pressure = snapshot?.memory.pressure ?? "normal";
+  const suggestions = snapshot?.processes.filter((process) => !process.protected).slice(0, 3) ?? [];
   return <section className="process-card" aria-labelledby="process-title">
     <div className="section-heading">
       <div><p className="eyebrow">Read-only monitor</p><h2 id="process-title">Top memory processes</h2></div>
-      <MonitorCog aria-hidden="true" />
+      <button className="secondary-button" type="button" onClick={() => void onOpenActivityMonitor()}><ExternalLink aria-hidden="true" /> Open Activity Monitor</button>
     </div>
+    {snapshot && <div className={`recovery-guidance ${pressure}`}>
+      {pressure === "normal" ? <MonitorCog aria-hidden="true" /> : <ShieldAlert aria-hidden="true" />}
+      <div>
+        <strong>{pressure === "normal" ? "No intervention recommended" : pressure === "warning" ? "Memory pressure is elevated" : "Memory pressure is critical"}</strong>
+        <span>{pressure === "normal"
+          ? "macOS is recycling memory normally. Cached and compressed RAM remains available when applications need it."
+          : suggestions.length > 0
+            ? `Review ${suggestions.map((process) => process.name).join(", ")} first. Mac Cleaner keeps developer jobs protected and leaves the final decision to you.`
+            : "Review the largest applications in Activity Monitor. Protected developer jobs will not be closed automatically."}</span>
+      </div>
+    </div>}
     {!snapshot ? <p className="muted">Loading process snapshot…</p> : (
       <div className="process-list" role="table" aria-label="Top processes by resident memory">
         <div className="process-row process-header" role="row">
@@ -32,6 +50,6 @@ export function ProcessMonitor({ snapshot }: { snapshot: SystemSnapshot | null }
         })}
       </div>
     )}
-    <p className="monitor-note">Mac Cleaner cannot signal, quit, or kill these processes.</p>
+    <p className="monitor-note">Recovery suggestions are advisory. Quitting an app remains a user-confirmed macOS action.</p>
   </section>;
 }

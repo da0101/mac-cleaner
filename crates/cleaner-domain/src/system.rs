@@ -1,6 +1,15 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MemoryPressureLevel {
+    #[default]
+    Normal,
+    Warning,
+    Critical,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MemorySnapshot {
     pub total_bytes: u64,
@@ -9,6 +18,14 @@ pub struct MemorySnapshot {
     pub available_bytes: u64,
     pub used_bytes: u64,
     pub swap_used_bytes: u64,
+    #[serde(default)]
+    pub reclaimable_bytes: u64,
+    #[serde(default)]
+    pub compressed_bytes: u64,
+    #[serde(default)]
+    pub file_backed_bytes: u64,
+    #[serde(default)]
+    pub pressure: MemoryPressureLevel,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

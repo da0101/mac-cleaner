@@ -41,6 +41,7 @@ fn run() -> Result<()> {
             commands::start_scan,
             commands::analyze_storage,
             commands::open_storage_owner,
+            commands::open_activity_monitor,
             commands::confirm_uv_cache_prune,
             commands::confirm_simulator_recordings_cleanup,
             commands::latest_scan,

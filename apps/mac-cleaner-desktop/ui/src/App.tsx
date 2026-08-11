@@ -37,7 +37,7 @@ export function App() {
           simulatorStatus={cleaner.simulatorStatus}
         />
 
-        <ProcessMonitor snapshot={cleaner.snapshot} />
+        <ProcessMonitor snapshot={cleaner.snapshot} onOpenActivityMonitor={cleaner.openActivityMonitor} />
 
         {cleaner.error && <div className="alert error" role="alert">{cleaner.error}</div>}
         <div className="sr-status" role="status" aria-live="polite">{cleaner.notice}</div>

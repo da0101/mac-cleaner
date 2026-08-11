@@ -19,6 +19,7 @@ pub(crate) fn install(app: &mut App) -> tauri::Result<()> {
     let menu = MenuBuilder::new(app)
         .text("show", "Open Mac Cleaner")
         .text("scan", "Scan now")
+        .text("memory", "Open Activity Monitor")
         .separator()
         .text("quit", "Quit Mac Cleaner")
         .build()?;
@@ -45,6 +46,9 @@ pub(crate) fn install(app: &mut App) -> tauri::Result<()> {
                     }
                 });
             }
+            "memory" => {
+                let _ = crate::commands::open_activity_monitor();
+            }
             "quit" => app.exit(0),
             _ => {}
         })
@@ -58,15 +62,17 @@ pub(crate) fn update_status(app: &AppHandle, snapshot: &SystemSnapshot) {
     };
     let memory = compact_pair(snapshot.memory.available_bytes, snapshot.memory.total_bytes);
     let disk = compact_pair(snapshot.disk.available_bytes, snapshot.disk.total_bytes);
-    let memory_status = memory_status(snapshot.memory.available_bytes, snapshot.memory.total_bytes);
+    let memory_status = memory_status(snapshot.memory.pressure);
     let disk_status = disk_status(snapshot.disk.available_bytes, snapshot.disk.total_bytes);
     set_status_title(&tray, &memory, &disk, memory_status, disk_status);
     let _ = tray.set_tooltip(Some(format!(
-        "Mac Cleaner — {} memory: {} RAM available out of {} ({} completely free); {} storage: {} available out of {}",
+        "Mac Cleaner — {} memory pressure: {} available out of {}; {} reclaimable, {} compressed, {} swap; {} storage: {} available out of {}",
         memory_status.label,
         readable_bytes(snapshot.memory.available_bytes),
         readable_bytes(snapshot.memory.total_bytes),
-        readable_bytes(snapshot.memory.free_bytes),
+        readable_bytes(snapshot.memory.reclaimable_bytes),
+        readable_bytes(snapshot.memory.compressed_bytes),
+        readable_bytes(snapshot.memory.swap_used_bytes),
         disk_status.label,
         readable_bytes(snapshot.disk.available_bytes),
         readable_bytes(snapshot.disk.total_bytes),
@@ -87,8 +93,23 @@ struct MenuStatus {
     label: &'static str,
 }
 
-fn memory_status(available: u64, total: u64) -> MenuStatus {
-    ratio_status(available, total, 20, 10)
+fn memory_status(pressure: cleaner_domain::MemoryPressureLevel) -> MenuStatus {
+    use cleaner_domain::MemoryPressureLevel;
+
+    match pressure {
+        MemoryPressureLevel::Normal => MenuStatus {
+            level: StatusLevel::Healthy,
+            label: "normal",
+        },
+        MemoryPressureLevel::Warning => MenuStatus {
+            level: StatusLevel::Low,
+            label: "elevated",
+        },
+        MemoryPressureLevel::Critical => MenuStatus {
+            level: StatusLevel::Critical,
+            label: "critical",
+        },
+    }
 }
 
 fn disk_status(available: u64, total: u64) -> MenuStatus {
@@ -234,6 +255,8 @@ fn readable_bytes(bytes: u64) -> String {
 
 #[cfg(test)]
 mod tests {
+    use cleaner_domain::MemoryPressureLevel;
+
     use super::{StatusLevel, compact_pair, disk_status, memory_status, readable_bytes};
 
     #[test]
@@ -245,9 +268,18 @@ mod tests {
 
     #[test]
     fn menu_status_colors_use_resource_specific_thresholds() {
-        assert_eq!(memory_status(3, 20).level, StatusLevel::Low);
-        assert_eq!(memory_status(1, 20).level, StatusLevel::Critical);
-        assert_eq!(memory_status(4, 20).level, StatusLevel::Healthy);
+        assert_eq!(
+            memory_status(MemoryPressureLevel::Warning).level,
+            StatusLevel::Low
+        );
+        assert_eq!(
+            memory_status(MemoryPressureLevel::Critical).level,
+            StatusLevel::Critical
+        );
+        assert_eq!(
+            memory_status(MemoryPressureLevel::Normal).level,
+            StatusLevel::Healthy
+        );
         assert_eq!(disk_status(4, 100).level, StatusLevel::Critical);
         assert_eq!(disk_status(10, 100).level, StatusLevel::Low);
         assert_eq!(disk_status(15, 100).level, StatusLevel::Healthy);

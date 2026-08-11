@@ -31,7 +31,7 @@ Full replacement of the Python cleaner, localhost dashboard, menu-bar widget, an
 - The menu-bar title is read-only and shows compact available RAM and SSD values from the shared Rust system snapshot.
 - Storage-pressure analysis runs only on request, measures a fixed catalog plus manifest-recognized generated project leaves, and labels each result as reviewable, tool-managed, or protected. Its report never grants cleanup authority.
 - Every recognized category follows the same reusable workflow: analyze, explain, preview a service-owned plan, confirm natively, revalidate, execute, and issue a receipt.
-- RAM optimization reports conservative available memory and memory pressure; it may suggest confirmed app quits, but does not manufacture “free” RAM by purging useful macOS caches.
+- RAM optimization reports conservative available, reclaimable, compressed, file-backed, and swapped memory. The 30-second watchdog derives normal/warning/critical pressure, notifies on sustained pressure, ranks unprotected apps, and opens Activity Monitor for user-confirmed recovery. It does not manufacture “free” RAM by flushing disk buffers or generating pressure.
 
 ## Locked contracts
 

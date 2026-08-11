@@ -26,7 +26,7 @@ The following are permanently protected:
 - `~/.pub-cache`, `~/.gradle`, credentials, databases, documents, photos, and unknown paths;
 - developer processes including editors, terminals, agents, compilers, Flutter/Dart/Gradle, and active jobs.
 
-The process monitor is read-only. The Rust product has no process-signal, force-quit, RAM-purge, DNS-flush, Docker-prune, Chrome-close, or unattended storage-cleanup API.
+Automatic memory recovery is pressure-based: every 30 seconds Mac Cleaner reports conservative available, reclaimable, compressed, and swapped memory; colors the menu-bar RAM status; and notifies on sustained warning or critical pressure. It ranks unprotected apps and can open Activity Monitor for a user-confirmed decision. The Rust product has no process-signal, force-quit, fake RAM-purge, pressure-generator, DNS-flush, Docker-prune, Chrome-close, or unattended storage-cleanup API.
 
 ## Initial cleanup catalog
 
