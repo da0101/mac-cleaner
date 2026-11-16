@@ -13,17 +13,34 @@ Triage → Interview → Research → Propose → Execute → Verify + Learn
 
 Each stage has a clear entry condition and a clear exit condition. Skip stages that don't apply.
 
+### Silicon Valley product mindset
+
+For every product, feature, cleanup, or technical decision, think like a
+best-in-class Silicon Valley product team: user-obsessed, future-facing,
+innovative, craft-driven, fast, and rigorous. Raise the bar beyond basic task
+completion by asking what would make the result differentiated, durable,
+scalable, delightful to use, and credible against leading technology products.
+
+This mindset is not permission for vague hype or scope creep. Ambition must be
+translated into the smallest coherent slice, explicit tradeoffs, strong
+execution quality, tests, rollback thinking, and human approval for any scope
+change. PM work must sharpen user value, differentiation, and success criteria;
+engineering work must turn that ambition into maintainable, performant,
+well-integrated implementation.
+
 ### New stream intake contract
 
 When a user request is not already tracked in `work/ACTIVE.md` and should become a new stream, every provider follows this strict order:
 
 ```
-Detect new stream → Register → Clarify → Research → Plan → Human approval → Execute → Verify + Learn
+Detect new stream → Register → Branch + local env → Clarify → Research → Plan → Human approval → Execute → Verify + Learn
 ```
 
 - **Research is always required for new streams.** Scale the depth to the task: small/low-risk streams may use a compact local + targeted web check, while medium+ or risky streams need the full research pass.
 - **Research must be specific to the work.** Cover the problem, comparable external examples or prior art, current patterns, implementation techniques, best practices, local code/docs, caveats, and a recommendation.
 - **Planning follows research.** Plans must include development phases, complexity, risk mitigation, alternatives considered, files to touch, tests, rollback path, and clarifying questions if anything is still ambiguous.
+- **Work starts on a stream branch.** Before implementation for feature, bugfix, or hotfix streams, create or switch to a `feature/<slug>` or `bugfix/<slug>` branch in each touched repo (from `develop`; hotfix from `master` only when the user explicitly says "hotfix"). Worktrees are on demand, not the default — see 1c.
+- **Local environment is prepared before coding.** In every checkout you will work from, install the repo's development dependencies and identify the local dev command plus localhost port(s) before implementation or manual QA planning.
 - **Human-in-the-loop is mandatory.** The agent must present the research-backed plan and wait for human validation/approval before implementation starts. During implementation, the agent must pause for clarification when the approved plan no longer fits reality.
 - **Implementation follows the approved plan.** Deviations are called out explicitly in chat and captured in the stream file via checkpoint/progress state when they affect scope, risk, or next action.
 
@@ -49,7 +66,7 @@ Trivial tasks (typo fix, rename, 1-line config change) skip directly to Stage 5.
    - If **yes and it's accurate**: read it, verify it's current, update if stale.
    - If **no, or the existing file only partially covers it**: create `.platform/domains/<name>.md` with the cross-layer touch-point inventory. Create it NOW, before the stream file.
    - **Common trap:** finding a domain file for a nearby feature (e.g. `menu-builder.md`) and treating it as sufficient for a different concern (e.g. subdomain routing). These are separate concerns and require separate domain files.
-3. **Create `work/<stream-slug>.md`** from `work/TEMPLATE.md` — fill in the frontmatter metadata (`stream_id`, `slug`, `type`, `status`, `agent_owner`, `domain_slugs`, `repo_ids`, `created_at`, `updated_at`) before writing scope, done criteria, and next action. Keep `stream_id` canonical: `stream-<slug>`.
+3. **Create `work/<stream-slug>.md`** from `work/TEMPLATE.md` — fill in the frontmatter metadata (`stream_id`, `slug`, `type`, `status`, `agent_owner`, `domain_slugs`, `repo_ids`, `base_branch`, `git_branch`, `created_at`, `updated_at`, `closure_approved`) before writing scope, done criteria, and next action. Keep `stream_id` canonical: `stream-<slug>`. Defaults: `base_branch: develop`, `git_branch: feature/<slug>` (or `bugfix/<slug>`), `closure_approved: false` — never set it `true` yourself; only the human flips it at closure.
 4. **Add a row to `work/ACTIVE.md`** — slug / type / in-progress / agent / date.
 5. **Update `work/BRIEF.md`** — set primary stream to this task; add domain file under "Relevant context".
 
@@ -58,6 +75,26 @@ Trivial tasks (typo fix, rename, 1-line config change) skip directly to Stage 5.
 Full protocol: `agents/work-tracking.md` § "Starting a new workstream".
 
 **Exit:** domain file exists, stream file exists, `ACTIVE.md` has the row, `BRIEF.md` is current.
+
+### 1c. Branch + local environment prep (worktree only on demand)
+
+Before feature, bugfix, or hotfix implementation begins, put the work on its own branch:
+
+1. **Determine stream kind and branch name**
+   - Feature work: `feature/<stream-slug>` from `develop`
+   - Bug fixes: `bugfix/<stream-slug>` from `develop`
+   - Hotfixes: `hotfix/<stream-slug>` from `master` only when the user explicitly says this is a hotfix
+   - If a repo uses a different production branch, use it only when the project docs or user explicitly override `master`.
+2. **Create the branch in each touched repo's main checkout** (`git fetch origin && git switch -c feature/<stream-slug> origin/develop`). If the branch already exists, verify it points at the correct base and continue there.
+3. **Use a worktree only on demand** — when the user asks, when two sessions must edit the same repo at the same time, or when the main checkout holds unrelated uncommitted work. Create it with `ab worktree new <stream-slug>` (add `--type bugfix|hotfix` as needed), record its path in the stream file, and remove it when the branch merges: `ab worktree status` lists leftovers, `ab worktree clean --apply` removes merged ones.
+4. **Install development dependencies in the checkout you work from**
+   - Use the repo's lockfile and toolchain: `npm ci`, `yarn install --frozen-lockfile`, `pnpm install --frozen-lockfile`, `uv sync`, `pip install -r requirements.txt`, `flutter pub get`, etc.
+   - If dependency install fails, stop and surface the blocker instead of coding against a partially prepared environment.
+5. **Identify local run commands and ports**
+   - Read the repo docs/scripts/env/docker compose config to find the dev server command(s) and localhost port(s).
+   - Record the command and port in the stream file under `## Worktree / Local environment`.
+
+**Exit:** every touched repo is on its stream branch (worktree path recorded if one was created), dependencies installed or blocker reported, and known local run command(s)/localhost port(s) recorded.
 
 ### 2. Interview
 
@@ -96,7 +133,7 @@ State a 5–10 bullet plan **inline in chat**. Include:
 
 ### 5. Execute
 
-Write the code. Max ~300 lines per file. For specialist work, delegate to the appropriate skill from `repos.md`.
+Write the code on the stream branch (in its worktree when one was created); never commit stream work directly to `develop` or `master`. Max ~300 lines per file. For specialist work, delegate to the appropriate skill from `repos.md`.
 
 **After every non-trivial Write or Edit**, log the reason so the next agent understands WHY, not just what changed:
 
@@ -118,17 +155,18 @@ Skip for: formatting, typo fixes, obvious renames. Required for: refactors, dele
 
 ### 6. Verify + Gate + Learn
 
-#### The commit gate — required before ANY `git commit`
+#### The commit gate — required before ANY `git commit`, `git push`, merge, release, or stream closure
 
-All three must be true before committing:
+All four must be true before committing, pushing, merging, releasing, or closing a stream:
 
 | Gate | Requirement |
 |---|---|
 | ✅ Tests pass | Unit tests for every new/modified function and component |
 | ✅ Security clear | Quick pass on anything touching auth, payments, or data access |
+| ✅ Manual QA artifact clear | If human/app-driving verification matters, `.platform/work/qa/<stream-slug>-manual-qa.md` exists and is executable by a human tester or Maestro-style agent; otherwise the stream file records `Manual QA: not required — <specific reason>` |
 | ✅ Human approves | User explicitly says "ship it" / "commit it" — the AI never self-approves |
 
-Present Stage 6 results to the user **before committing**. Wait for the green light.
+Present Stage 6 results and the Manual QA artifact path or not-required reason to the user **before committing, pushing, merging, releasing, or closing**. Wait for the green light.
 
 #### Testing philosophy — when and how to write tests
 
@@ -164,6 +202,99 @@ Then verify in parallel:
 - Specialist B: security / code review pass (for anything security-sensitive)
 - Specialist C: real-browser QA (for UI changes)
 
+#### Manual QA artifact — required when human verification matters
+
+At the end of Stage 6, the agent must create a durable markdown Manual QA artifact whenever the task requires human click-through, app-driving, behavior verification, bug reproduction, acceptance testing, release verification, API behavior validation, or visual review. This is a hard gate before commit, push, merge, release, or stream closure.
+
+Default path:
+```
+.platform/work/qa/<stream-slug>-manual-qa.md
+```
+
+The artifact is not a planning `.md`; it is a required QA deliverable. It must be precise enough for someone who did not implement the work to execute it manually, and precise enough for a Maestro/browser/app-driving agent to translate into actions. If manual QA is not relevant, the stream file must explicitly record `Manual QA: not required — <specific reason>`. Do not delete Manual QA artifacts; when a stream closes, archive them with the stream under `.platform/work/archive/qa/`.
+
+When the agent itself drives the app with Maestro, Browser, Playwright, MCP, or
+another interactive tool, it must also create a chronological QA Execution
+Journal. The Manual QA artifact says what should be tested; the execution
+journal says what actually happened from the agent's perspective.
+
+Execution journal default path:
+```
+.platform/work/qa/<stream-slug>-execution-journal.md
+```
+
+Execution journals are required for LLM-driven interactive QA even when every
+test passes. They must record successful paths as well as failures, fixes,
+human blockers, skipped checks, retests, and remaining risks. Do not delete
+execution journals while the stream is open; `ab close --confirm` moves them out
+of the repo with the stream (a copy is kept under `~/.agentboard/cold/`).
+
+Use this structure:
+
+```
+## 🧪 Manual QA Artifact
+
+🎯 Scope: <feature / bug / behavior being validated>
+🧰 Environment: <local/staging/prod, URL, branch/build, browser/device, flags>
+🔑 Test data: <accounts, roles, fixtures, records, permissions>
+🛡️ Safety limits: <forbidden actions, rate/API caps, destructive-data rules>
+
+✅ Happy path
+1. <exact action: where to click/type/navigate> → Expected: <observable result>
+2. <exact action: where to click/type/navigate> → Expected: <observable result>
+
+🐛 Bug repro / regression
+1. <original failing behavior or regression path> → Expected: <fixed behavior>
+
+⚠️ Edge cases
+- <case> → Expected: <result>
+- <case> → Expected: <result>
+
+📱 Browser/device checks: <only when relevant>
+♿ Accessibility checks: <keyboard, focus, labels, contrast when relevant>
+🧾 Evidence to capture: <screenshots, logs, IDs, pass/fail notes>
+🤖 Maestro / automation notes: <stable selectors, flow boundaries, caps, artifacts>
+✅ Signoff: <tester, date, PASS/FAIL/BLOCKED, remaining risk>
+```
+
+Execution journal structure:
+
+```
+## 🧾 QA Execution Journal
+
+Scope:
+Environment:
+Driver/tooling: <Maestro MCP/CLI, Browser, Playwright, app runner, API client>
+Manual QA artifact followed: <path>
+Safety limits:
+
+### Timeline
+| # | Time | Tool | Action | Observation | Expected | Actual | Status | Evidence |
+|---|---|---|---|---|---|---|---|---|
+| 1 | <time> | <tool> | <opened app / clicked / typed / inspected / ran command> | <what the agent saw> | <expected> | <actual> | PASS/FAIL/BLOCKED/SKIPPED | <screenshot/log/report/ref> |
+
+### Bugs, fixes, and retests
+| Bug / behavior | Evidence | Diagnosis | Fix or escalation | Retest | Outcome |
+|---|---|---|---|---|---|
+| <issue or "None"> | <ref> | <cause or suspected layer> | <files changed / human asked / deferred> | <step rerun> | <PASS/FAIL/BLOCKED> |
+
+### Successful paths
+- <flow that passed> — evidence: <ref>
+
+### Human requests / blockers
+- <missing credential/file/decision or "None">
+
+### Remaining risk
+- <risk or "None known">
+```
+
+Rules:
+- Each step starts with a concrete user action and includes an expected result.
+- Include prerequisites and cleanup if test data or state must be prepared or restored.
+- For bug fixes, include the original repro path and the regression check proving it stays fixed.
+- For features, include at least one happy path plus the most important negative/edge path.
+- Keep it concise enough to execute, but specific enough to remove guesswork.
+
 Then **learn in three layers:**
 
 **Layer 1 — Log (always):** append one line to `.platform/memory/log.md`:
@@ -185,6 +316,8 @@ Class: <category — for grep>
 
 **Bug investigation rule:** before diagnosing any non-obvious bug, grep `.platform/memory/learnings.md` for the symptom keyword first. Don't re-diagnose a known class of problem.
 
+**Stream state update:** `ab checkpoint <stream-slug> --what "<what just happened>" --next "<next action>"` is the canonical way to update the stream file's `## Resume state` (current state) section — run it at the end of Stage 6, and any time you pause, switch providers, or end the session. Don't hand-edit that block; the command overwrites it atomically and trims the progress log.
+
 **Exit:** task is done, recorded, and learned from.
 
 ---
@@ -201,15 +334,16 @@ Run this checklist **every time a stream reaches done** — before archiving the
 > **Why:** skipping this leaves stale docs for the next session/agent. Completed features must be fully reflected in all reference files before the stream is archived.
 
 1. **Verify done criteria** — open the stream file (`work/<slug>.md`), confirm every checkbox is ticked.
-2. **Update STATUS files** — for every repo the stream touched, mark features ✓ Done, update Last touched date, remove from Immediate priorities.
-3. **Update domain file** — open `.platform/domains/<name>.md` if one exists. Update file paths, API shapes, cross-repo touch-points that changed.
-4. **Deep-reference file check** — for every repo the stream touched, make an explicit YES/NO decision on whether the per-repo reference file (e.g. `backend.md`, `admin.md`) is now stale. Ask: *"Would a new developer or agent reading this file today take a wrong path?"* Update if YES. Skip if NO. This catches: new URL routes, removed fields, stack changes, patterns that no longer apply. State the decision in chat either way.
-5. **Update architecture.md** — if the stream changed system topology (new endpoints, new data flows, auth changes), update the relevant section.
-6. **Unblock downstream streams** — flip any `pending (blocked on this)` stream in `ACTIVE.md` to `ready-to-plan`.
-7. **Archive the stream file** — first check: does the stream file have `closure_approved: true`? If not, **STOP**. Do not archive. Ask the owner to set it. Only when `closure_approved: true` is present: move `work/<slug>.md` → `work/archive/<slug>.md`, remove from `ACTIVE.md`, reset `BRIEF.md`. **Remove the closed stream from `BRIEF.md` entirely — do NOT add a "Previously completed" section.** Completed work belongs in `log.md` only. `BRIEF.md` must only ever list active streams.
-8. **Log token usage** — run `ab usage log` to record the total token investment for this stream (aggregate from session reports).
-9. **Append to log.md** — one line: `YYYY-MM-DD — <stream> — <outcome> — <takeaway>`.
-10. **Learnings check** — any non-obvious bugs surfaced? Confirm they are in `learnings.md`. Add if missing.
+2. **Verify Manual QA artifact gate** — if human/app-driving verification matters, confirm `.platform/work/qa/<stream-slug>-manual-qa.md` exists, has exact steps plus expected results, and records pass/fail/evidence expectations. If not relevant, confirm the stream file records `Manual QA: not required — <specific reason>`. If an LLM/agent drove the app with Maestro, Browser, Playwright, MCP, or another interactive tool, also confirm `.platform/work/qa/<stream-slug>-execution-journal.md` exists and records the chronological steps, observations, bugs, fixes, retests, successful paths, evidence, and blockers.
+3. **Update STATUS files** — for every repo the stream touched, mark features ✓ Done, update Last touched date, remove from Immediate priorities.
+4. **Update domain file** — open `.platform/domains/<name>.md` if one exists. Update file paths, API shapes, cross-repo touch-points that changed.
+5. **Deep-reference file check** — for every repo the stream touched, make an explicit YES/NO decision on whether the per-repo reference file (e.g. `backend.md`, `admin.md`) is now stale. Ask: *"Would a new developer or agent reading this file today take a wrong path?"* Update if YES. Skip if NO. This catches: new URL routes, removed fields, stack changes, patterns that no longer apply. State the decision in chat either way.
+6. **Update architecture.md** — if the stream changed system topology (new endpoints, new data flows, auth changes), update the relevant section.
+7. **Unblock downstream streams** — flip any `pending (blocked on this)` stream in `ACTIVE.md` to `ready-to-plan`.
+8. **Close the stream and its QA artifacts** — first check: does the stream file have `closure_approved: true`? If not, **STOP**. Do not close. Ask the owner to set it. Only when `closure_approved: true` is present, write the `## Knowledge delta` in the stream file (keyed current-state facts per `### <domain> | <layer>`; see `ab close <slug>`), then run `ab close <slug> --confirm`. It merges the delta into `.platform/domains/<domain>.md`, copies the stream and its `work/qa/<slug>-manual-qa.md` / `<slug>-execution-journal.md` outside the repo (`~/.agentboard/cold/`), and removes them from `.platform/work/`. Remove the stream from `ACTIVE.md`, reset `BRIEF.md`. **Remove the closed stream from `BRIEF.md` entirely — do NOT add a "Previously completed" section.** Completed work belongs in `log.md` only. `BRIEF.md` must only ever list active streams.
+9. **Log token usage** — run `ab usage log` to record the total token investment for this stream (aggregate from session reports).
+10. **Append to log.md** — one line: `YYYY-MM-DD — <stream> — <outcome> — <takeaway>`.
+11. **Learnings check** — any non-obvious bugs surfaced? Confirm they are in `learnings.md`. Add if missing.
 
 **Hard rule:** steps 2–5 are not optional. If a stream touched 3 repos, all 3 STATUS files get updated and all 3 deep-reference files get an explicit YES/NO decision. The next agent should be able to open any reference file and see a correct picture of the world.
 
@@ -397,27 +531,48 @@ Repeat until the scorecard is all 🟢:
 
 ## Hard rules
 
-1. **No `.md` artifacts for plans.** Plans live in chat. Only write `.md` files when they're genuinely reusable (specs, docs, conventions). **`work/` stream files are the exception — they are mandatory operational state, not plan documents. Always create them (Stage 1b) before starting non-trivial work.**
-2. **Max ~300 lines per file.** Extract components before hitting the limit.
+1. **No `.md` artifacts for plans.** Plans live in chat. Only write `.md` files when they're genuinely reusable (specs, docs, conventions). **`work/` stream files, `.platform/work/qa/<stream-slug>-manual-qa.md` QA artifacts, and `.platform/work/qa/<stream-slug>-execution-journal.md` QA execution journals are exceptions — they are mandatory operational state, not plan documents. Always create required stream files (Stage 1b) and QA artifacts/journals (Stage 6) before shipping.**
+2. **Max ~300 lines per file.** Extract components before hitting the limit. The agentboard dashboard flags files visually by size — treat these as mandatory signals, not suggestions:
+   - **500–799 lines** (amber): growing monolith — avoid adding more code; propose extracting a module.
+   - **800–999 lines** (orange): large, hard to refactor — do not add code; propose splitting before any further work.
+   - **1000+ lines** (red): extreme monolith — stop, escalate to user, propose a refactor plan before ANY additions. Adding more code to a 1000-line file without splitting it first is a hard rule violation.
+   When you find a file already at or near 500 lines and your task would push it further, pause, tell the user the current line count and your estimate of what the task adds, and propose a split first. The user decides whether to split now or proceed with a documented exception.
 3. **Trivial tasks skip to Stage 5.** Don't bureaucratize small work.
 4. **Parallelize subagents.** Never run independent subagents sequentially.
 5. **Every success logs one line.** `.platform/memory/log.md` is append-only, newest-on-top.
 6. **Read before you edit.** Always read the file before modifying it, even if you "know" the content.
 7. **Ask before destructive actions.** Deletes, force-pushes, rollbacks, schema drops — always confirm.
-8. **Never commit before Stage 6 + human approval.** Execute produces code. Stage 6 + the human produces the commit. No exceptions — not even for "trivial" changes.
+8. **Never commit, push, merge, release, or close before Stage 6 + Manual QA artifact gate + human approval.** Execute produces code. Stage 6 produces tests and QA evidence. The human produces the commit/release/closure approval. No exceptions — not even for "trivial" changes.
 9. **Never include `git commit` in sub-agent prompts.** Agents write code and stop. If an agent is told to commit, it bypasses tests and human approval — exactly the failure mode this rule prevents.
 
 ---
 
-## Model profile hint (Claude Code, optional)
+## Model profile hint
 
-| Scope | Suggested profile |
-|---|---|
-| Trivial | Haiku / cheapest |
-| Small | Sonnet / balanced |
-| Medium | Sonnet / balanced |
-| Large | Opus / quality |
-| High-risk | Opus / quality |
+Look the model up instead of memorising a table: `ab route <task-type> [low|medium|high]` (add `--for claude` for just the alias). The data lives in `.platform/routing.tsv` (task type + complexity → tier) and `.platform/models.tsv` (tier → model per provider); edit those when models change. `ab usage report --by model` shows what was actually used.
+
+
+### Workflow agent model rules (Claude Code /workflows)
+
+**Always pass `model` explicitly in every `agent()` call.** Omitting it
+inherits the caller's model — if you are running on Opus, all subagents
+become Opus and token cost multiplies by agent count.
+
+```js
+// research / audit / review / test-writing → sonnet
+agent("research approach", { model: "sonnet" })
+agent("review the diff",   { model: "sonnet" })
+agent("write unit tests",  { model: "sonnet" })
+
+// implementation / architecture / hard decisions → opus
+agent("implement feature", { model: "opus" })
+agent("design the schema", { model: "opus" })
+
+// trivial mechanical transforms → haiku
+agent("rename symbol",     { model: "haiku" })
+```
+
+**All analysis agents run on Sonnet.** Analysis is read-only — never Opus.
 
 ---
 

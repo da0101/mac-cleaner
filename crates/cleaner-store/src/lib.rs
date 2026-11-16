@@ -13,6 +13,7 @@ mod recovery;
 mod schema;
 mod settings;
 mod state;
+mod storage_snapshots;
 mod tool_cleanup;
 
 pub use error::StoreError;

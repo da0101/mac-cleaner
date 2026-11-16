@@ -15,6 +15,7 @@
 # AGENTBOARD_PROVIDER and AGENTBOARD_SESSION_ID before calling these fns.
 
 _ab_events_hook=".platform/scripts/hooks/event-logger.sh"
+_ab_session_snapshot_hook=".platform/scripts/hooks/session-snapshot.js"
 
 _ab_session_event() {
   local kind="$1" session_id="$2" extra="${3:-}"
@@ -34,6 +35,36 @@ _ab_session_event() {
     payload="{\"hook_event_name\":\"$kind\",\"session_id\":\"$session_id\"}"
   fi
   printf '%s' "$payload" | bash "$_ab_events_hook" 2>/dev/null || true
+}
+
+_ab_write_session_snapshot() {
+  local session_id="$1" provider="$2"
+  [[ -f "$_ab_session_snapshot_hook" ]] || return 0
+  command -v node >/dev/null 2>&1 || return 0
+  AGENTBOARD_PROVIDER="$provider" \
+  AGENTBOARD_SESSION_ID="$session_id" \
+  AGENTBOARD_CWD="$(pwd)" \
+  node "$_ab_session_snapshot_hook" >/dev/null 2>&1 || true
+}
+
+_ab_start_session_heartbeat() {
+  local session_id="$1" provider="$2" interval="${3:-15}"
+  [[ -f "$_ab_session_snapshot_hook" ]] || { printf '0'; return 0; }
+  command -v node >/dev/null 2>&1 || { printf '0'; return 0; }
+  _ab_write_session_snapshot "$session_id" "$provider"
+  (
+    while sleep "$interval"; do
+      AGENTBOARD_PROVIDER="$provider" \
+      AGENTBOARD_SESSION_ID="$session_id" \
+      AGENTBOARD_CWD="$(pwd)" \
+      node "$_ab_session_snapshot_hook" >/dev/null 2>&1 || true
+    done
+  ) >/dev/null 2>&1 &
+  printf '%s' $!
+}
+
+_ab_stop_session_heartbeat() {
+  _ab_stop_file_poller "${1:-0}"
 }
 
 # Best-effort: start daemon if not already running.

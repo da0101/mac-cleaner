@@ -3,16 +3,18 @@ domain_id: dom-rust-application
 slug: rust-application
 status: active
 repo_ids: [mac-cleaner]
-related_domain_slugs: [safe-cleanup-policy, storage-cleanup, memory-optimization, local-dashboard]
+related_domain_slugs: [safe-cleanup-policy, storage-cleanup, memory-optimization, native-macos-shell, storage-forensics]
 created_at: 2026-08-10
-updated_at: 2026-08-11
+updated_at: 2026-11-16
 ---
 
 # rust-application
 
-Full replacement of the Python cleaner, localhost dashboard, menu-bar widget, and installers with a release-grade Rust macOS application and CLI.
+Rust backend, CLI, persistence, policy, and native-app protocol for the SwiftUI macOS product. The Python cleaner, localhost dashboard, and web menu-bar widget have been fully removed from this branch.
 
-## Existing implementation to replace
+## Retired implementation context
+
+<!-- updated: 2026-11-16 — all listed v1 files were removed; names remain as historical migration context only. -->
 
 - `scanner.py`, `cleaner.py` — scan policy, preview, and destructive execution.
 - `server.py`, `mac_cleaner_server/` — localhost API, scheduling, memory, and process monitoring.
@@ -23,15 +25,16 @@ Full replacement of the Python cleaner, localhost dashboard, menu-bar widget, an
 
 ## Replacement boundaries
 
-- Rust owns scanning, policy, cleanup plans, execution, system metrics, persistence, CLI, app lifecycle, and packaging.
+- Rust owns scanning, policy, cleanup plans, execution, system metrics, persistence, the CLI, and the constrained native-app engine protocol.
 - The shipped product requires no Python, pip, virtual environment, or Node runtime.
-- Tauri hosts bundled local UI assets; the frontend receives no filesystem, shell, process, or network authority.
-- The application uses typed Tauri IPC rather than a localhost HTTP listener.
+- SwiftUI/AppKit owns native presentation, application lifecycle, menu bar, notifications, and login-item preferences.
+- The application uses a bundled one-shot Rust helper with a versioned JSON protocol rather than a localhost HTTP listener or web view.
+- The application also bundles a separate Rust stdio MCP helper so Codex and Claude can inspect CPU/storage evidence and invoke the same closed-world cleanup service. It accepts opaque IDs rather than paths and separates non-destructive preparation from explicitly confirmed destructive execution.
 - The safe-cleanup policy is a release-blocking contract.
-- The menu-bar title is read-only and shows compact available RAM and SSD values from the shared Rust system snapshot.
+- The menu-bar title is read-only and shows compact severity-coded RAM, CPU, and SSD values from the shared Rust system snapshot; its popover lists the top sampled CPU consumers without terminating them.
 - Storage-pressure analysis runs only on request, measures a fixed catalog plus manifest-recognized generated project leaves, and labels each result as reviewable, tool-managed, or protected. Its report never grants cleanup authority.
 - Every recognized category follows the same reusable workflow: analyze, explain, preview a service-owned plan, confirm natively, revalidate, execute, and issue a receipt.
-- RAM optimization reports conservative available, reclaimable, compressed, file-backed, and swapped memory. The 30-second watchdog derives normal/warning/critical pressure, notifies on sustained pressure, ranks unprotected apps, and opens Activity Monitor for user-confirmed recovery. It does not manufacture “free” RAM by flushing disk buffers or generating pressure.
+- System monitoring reports CPU load, top CPU/memory jobs, conservative available/reclaimable/compressed/file-backed/swapped memory, and pressure every five seconds. It notifies on sustained memory pressure and opens Activity Monitor for user-confirmed recovery; it never terminates jobs, flushes disk buffers, or manufactures pressure.
 
 ## Locked contracts
 
@@ -41,10 +44,10 @@ Full replacement of the Python cleaner, localhost dashboard, menu-bar widget, an
 - Every reviewed cleanup shows exact paths, impact, recovery method, and confirmation before mutation.
 - Developer tools and active jobs are never killed, signaled, closed, or manipulated automatically.
 - Login startup, upgrades, crash recovery, uninstall, universal binaries, signing, notarization, and rollback are release requirements.
-- Python remains only as a migration reference until the Rust release candidate passes safety and parity gates.
+- Historical Python behavior remains available through Git history only; no Python source or runtime ships on this branch.
 
 ## Compatibility surfaces
 
 - Existing `settings.json` and `cleanup_history.json` require a copy-only, versioned import.
 - Existing command intents need explicit parity or owner-approved retirement.
-- Existing dashboard workflows need behavioral parity even though the server architecture is retired.
+- Historical dashboard workflows were either mapped to native views or explicitly retired; no localhost compatibility surface remains.

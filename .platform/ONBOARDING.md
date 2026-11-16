@@ -12,9 +12,10 @@ Read, in this exact order:
 
 1. **`CLAUDE.md`** (or `AGENTS.md` / `GEMINI.md`) at the project root
    — What this project is, the constraints, the workflow.
-2. **`.platform/STATUS.md`** — where are we right now
+2. **`.platform/roles/INDEX.md`** — match the task's intent to a role profile (who you are for this task) before starting work.
+3. **`.platform/STATUS.md`** — where are we right now
    — Per-layer status files (if present) hang off this index. Read the layer relevant to your task.
-3. **`.platform/ONBOARDING.md`** — you are here.
+4. **`.platform/ONBOARDING.md`** — you are here.
 
 After step 1 you know: what's shipped, what's in flight, what's blocked, what's forbidden.
 
@@ -77,7 +78,7 @@ If the stream is fully complete, run the **Stream Closure Protocol** from `workf
 2. Update STATUS files for every repo touched
 3. Update domain file + architecture.md if topology changed
 4. Unblock downstream streams in `ACTIVE.md`
-5. Archive stream file, reset `BRIEF.md`
+5. Close the stream (`ab close <slug> --confirm` — merges knowledge, removes the file), reset `BRIEF.md`
 6. Append to `log.md`, check `learnings.md`
 
 If the session is ending but the stream is NOT complete:

@@ -10,6 +10,23 @@ pub enum MemoryPressureLevel {
     Critical,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CpuPressureLevel {
+    #[default]
+    Normal,
+    Warning,
+    Critical,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CpuSnapshot {
+    pub usage_percent: f32,
+    pub logical_cores: u32,
+    #[serde(default)]
+    pub pressure: CpuPressureLevel,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MemorySnapshot {
     pub total_bytes: u64,
@@ -49,6 +66,7 @@ pub struct ProcessSnapshot {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SystemSnapshot {
     pub captured_at: DateTime<Utc>,
+    pub cpu: CpuSnapshot,
     pub memory: MemorySnapshot,
     pub disk: DiskSnapshot,
     pub processes: Vec<ProcessSnapshot>,

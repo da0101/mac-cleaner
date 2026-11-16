@@ -2,14 +2,14 @@
 stream_id: stream-menubar-memory-widget
 slug: menubar-memory-widget
 type: bug
-status: in-progress
+status: closure-review
 agent_owner: codex
 domain_slugs: [memory-optimization, local-dashboard]
 repo_ids: [mac-cleaner]
 base_branch: main
 git_branch: fix/menubar-memory-widget
 created_at: 2026-05-04
-updated_at: 2026-05-04
+updated_at: 2026-11-16
 closure_approved: false
 ---
 
@@ -40,10 +40,10 @@ closure_approved: false
 - 2026-05-04 - Reuse the existing menu bar stream - ACTIVE.md already had the stream row, so this file restores the missing tracked context instead of creating a duplicate.
 
 ## Resume state
-- **Last updated:** 2026-05-04 by codex
-- **What just happened:** Replaced stale-prone auto-clean toggles with explicit set/status APIs, made menu bar sync sticky across transient localhost failures, and kept action rows high contrast; tests pass.
-- **Current focus:** Ready for user review.
-- **Next action:** Restart the dashboard server and menu bar widget, then review the expanded dropdown.
+- **Last updated:** 2026-11-16 by codex
+- **What just happened:** The v1 Python/dashboard widget was superseded by the verified native SwiftUI window-style menu-bar popover with accessible RAM/SSD metrics and no automatic purge controls.
+- **Current focus:** Historical stream retained for owner closure review.
+- **Next action:** Owner may close/archive this stream because its product surface has been replaced by `native-swiftui-shell`.
 - **Blockers:** none
 
 ## Progress log
@@ -55,6 +55,7 @@ closure_approved: false
 - 2026-05-04 12:45 - Added menu bar stats/actions parity with dashboard controls.
 - 2026-05-04 13:05 - Moved auto-clean countdowns into shared server state and added menu bar auto-clean toggle.
 - 2026-05-04 13:35 - Added explicit auto-clean status/set API and sticky menu bar sync to fix stale paused state.
+- 2026-11-16 - Superseded the Python widget/dashboard with the native SwiftUI menu-bar popover; retained historical decisions but retired automatic purge behavior.
 
 ## Open questions
 _Things blocked on user input. Remove when resolved._

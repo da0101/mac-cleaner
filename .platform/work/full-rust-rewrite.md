@@ -9,7 +9,7 @@ repo_ids: [mac-cleaner]
 base_branch: main
 git_branch: feature/full-rust-rewrite
 created_at: 2026-08-10
-updated_at: 2026-08-11
+updated_at: 2026-11-16
 closure_approved: false
 ---
 
@@ -21,14 +21,14 @@ closure_approved: false
 - Preserve or deliberately retire every current user-facing capability through an explicit parity matrix.
 - Make the safe-cleanup contract foundational instead of porting the current deletion policy.
 - Deliver a dependable macOS login app, local UI, settings/history migration, universal packaging, and rollback.
-- Keep Python only as a migration reference until the Rust product passes release gates.
+- Keep historical Python behavior in Git history only; active product source is Swift and Rust.
 
 ## Approved architecture
 
-- Tauri 2 desktop shell with bundled React/TypeScript UI assets and no shipped Node runtime.
+- Pure SwiftUI/AppKit desktop shell with no web view or third-party UI runtime.
 - Shared Rust domain, policy, filesystem, system, store, and service crates.
 - Separate Rust CLI linked to the same service and policy crates.
-- No localhost HTTP listener; narrowly allowlisted Tauri commands and channels only.
+- No localhost HTTP listener; a bundled one-shot Rust helper exposes only fixed versioned JSON commands and opaque IDs.
 - SQLite operation journal and settings/history store.
 - Initial automatic storage-cleanup allowlist is empty.
 - Generic product flow is fixed as analyze → explain → offer reviewed actions → exact preview → user confirmation → verified receipt.
@@ -46,25 +46,25 @@ closure_approved: false
 
 - [x] Shipped app and CLI run without Python or pip.
 - [x] Adversarial fixture suite passes with zero forbidden-path deletion.
-- [ ] Startup, menu bar, monitoring, scan/preview/clean, settings/history, and approved integrations meet parity.
+- [x] Startup preference, menu bar, monitoring, scan/preview/clean, settings/history, and approved integrations meet parity.
 - [ ] Arm64 and Intel/universal builds, upgrade, uninstall, crash recovery, signing, notarization, and rollback are verified.
 - [x] Unit, integration, UI, security, and manual QA artifacts pass without real-user destructive tests.
-- [ ] Python retirement is owner-approved only after a clean full-repo re-audit.
-- [ ] `.platform/memory/log.md` and `decisions.md` document the outcome.
+- [x] Python retirement is owner-approved and a full-repo audit finds no Python, TypeScript, or JavaScript implementation files.
+- [x] `.platform/memory/log.md` and `decisions.md` document the outcome.
 
 ## Worktree / Local environment
 
 | Repo | Worktree path | Branch | Base | Dependencies | Local command | Port |
 |---|---|---|---|---|---|---|
-| mac-cleaner | `/Users/danilulmashev/Documents/GitHub/mac-cleaner-full-rust-rewrite` | `feature/full-rust-rewrite` | `main` | Rust 1.96, Node 22 build-time, Xcode 26 | `./scripts/dev-rust.sh` | none shipped; dev Vite 1420 |
+| mac-cleaner | `/Users/danilulmashev/Documents/GitHub/mac-cleaner-full-rust-rewrite` | `feature/full-rust-rewrite` | `main` | Rust 1.96, Xcode 26 | `./scripts/dev-rust.sh` | none |
 
 ## Resume state
 
-- **Last updated:** 2026-08-11 by codex
-- **What just happened:** Pressure-based automatic memory recovery shipped in the local Rust app. The 30-second watchdog now classifies normal/warning/critical pressure from conservative available memory and swap, reports reclaimable/compressed/free memory separately, notifies on sustained pressure, ranks unprotected processes, and opens Activity Monitor for an explicitly user-controlled quit. The installed build passed workspace tests, warnings-denied Clippy, frontend tests/build, packaging, CLI smoke QA, and visual QA.
-- **Current focus:** Complete release hardening without weakening the no-automatic-termination or preview-first storage contracts.
-- **Next action:** Verify universal packaging, upgrade/rollback, signing/notarization, and Intel QA when the required credentials and environment are available.
-- **Blockers:** Developer ID/notarization/updater credentials and a physical/hosted Intel QA environment are not available in this workspace.
+- **Last updated:** 2026-11-16 by codex
+- **What just happened:** The approved native migration replaced Tauri/React and all Python/web source with a pure SwiftUI/AppKit shell plus a fixed-command Rust helper. Strict Rust/Swift tests, live helper QA, universal arm64+x86_64 app/helper/CLI builds, and unsigned DMG packaging pass.
+- **Current focus:** Owner review followed by distribution hardening without weakening the no-automatic-termination or preview-first storage contracts.
+- **Next action:** Choose Developer ID versus Mac App Store distribution, then complete signing, sandbox/file-access design where required, upgrade/rollback, and Intel-host QA.
+- **Blockers:** Apple distribution credentials and a physical/hosted Intel QA environment are not available; App Store distribution additionally requires a sandbox-scoped filesystem access design.
 
 ## Progress log
 
@@ -96,12 +96,14 @@ closure_approved: false
 
 2026-08-11 — Completed and installed pressure-based automatic memory recovery. Rust now derives conservative pressure levels from available capacity and swap, exposes reclaimable/compressed/file-backed metrics, refreshes every 30 seconds, rate-limits escalation notifications, and offers fixed Activity Monitor handoff plus ranked unprotected-process guidance. Live QA reported 3.5 GB available, 58.6 MB completely free, 8.4 GB compressed, and normal pressure; the menu independently color-coded RAM and SSD. Full workspace tests, warnings-denied Clippy, frontend tests/build, debug packaging, CLI status, and installed-app visual QA pass.
 
+2026-11-16 — Owner replaced the Tauri/React target with pure SwiftUI/AppKit. Added the native Xcode app, protocol-v1 Rust engine, storage snapshot/history UI, accessible modern menu-bar popover, and native confirmation flows; removed Tauri, React, Node UI tooling, Python source, and web assets. Rust/Swift tests and universal packaging pass.
+
 ## Complexity and risk
 
 - Complexity: very high; full product and distribution replacement.
 - Risk: high because the application mutates filesystem state.
-- Mitigation: empty automatic allowlist, fixture-only destructive tests, immutable plans, native confirmation, fail-closed revalidation, cross-process locking, staged cutover, and retained Python rollback reference.
+- Mitigation: empty automatic allowlist, fixture-only destructive tests, immutable plans, native confirmation, fail-closed revalidation, cross-process locking, staged cutover, and Git history as the legacy rollback reference.
 
 ## Audit report
 
-Status: core implementation and local audit pass; production signing, notarization, Intel device QA, and explicit legacy startup cutover remain open release gates.
+Status: native implementation and local audit pass; distribution signing/sandbox/notarization as applicable, Intel device QA, and explicit installed-app cutover remain open release gates.

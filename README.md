@@ -1,8 +1,8 @@
 # Mac Cleaner 2
 
-Mac Cleaner is a conservative macOS storage and system monitor for developers. Version 2 is a Rust rewrite with a native Tauri menu-bar app, a shared Rust CLI, and a deliberately small cleanup policy.
+Mac Cleaner is a conservative macOS storage and system monitor for developers. Version 2 combines a pure SwiftUI/AppKit menu-bar application with a Rust engine, a shared Rust CLI, and a deliberately small cleanup policy.
 
-This branch is an alpha release candidate. It does not require Python, pip, a virtual environment, or a Node runtime after packaging. The Python version on `main` remains the rollback reference until the release gates are complete.
+This branch is an alpha release candidate. Its implementation languages are Swift and Rust only: no Python, TypeScript, React, Tauri, Node, web view, pip, or virtual environment is part of the source or packaged application. The historical Python version on `main` remains a Git rollback reference until the release gates are complete.
 
 ## Safety model
 
@@ -43,13 +43,39 @@ Entries containing project sentinels, symlinks, hard-linked files, special objec
 - `cleaner-domain` — typed IDs, plans, receipts, quarantine actions, and snapshots.
 - `cleaner-policy` — compiled allowlist and permanent protections.
 - `cleaner-fs` — bounded scanner and identity-revalidated filesystem actions.
-- `cleaner-system-macos` — read-only memory, disk, and process snapshots.
+- `cleaner-system-macos` — read-only CPU, memory, disk, and process snapshots.
 - `cleaner-store` — SQLite WAL settings, migration, plans, events, and receipts.
 - `cleaner-service` — single-flight orchestration and cross-process mutation lock.
-- `mac-cleaner-desktop` — Tauri 2 lifecycle, tray, native confirmations, and bundled UI.
+- `mac-cleaner-engine` — versioned one-shot JSON protocol used by the native app through fixed commands and opaque IDs.
+- `mac-cleaner-mcp` — bundled closed-world MCP stdio server for local Codex and Claude diagnosis and confirmed cleanup.
+- `mac-cleaner-macos` — pure SwiftUI/AppKit lifecycle, menu bar, native confirmations, and Xcode project.
 - `mac-cleaner` — Rust CLI linked to the same service and policy.
 
-The installed app bundles its interface and opens no HTTP listener. Vite binds to `127.0.0.1:1420` only during development. The frontend has no filesystem, shell, process, or arbitrary network capability; it can call only the registered Tauri commands.
+The installed app embeds the Rust engine under `Contents/Helpers` and opens no HTTP listener. Swift resolves that helper through the application bundle and can invoke only a fixed command allowlist; it never supplies arbitrary cleanup paths or shell fragments.
+
+## Claude and Codex MCP
+
+The installed application also embeds `Contents/Helpers/mac-cleaner-mcp`, a local stdio server backed by the same Rust service and SQLite journal as the UI. It exposes closed-world inspection plus exact-plan cleanup tools:
+
+- `latest_storage_report` — return the most recent saved path-level report without rescanning;
+- `analyze_storage` — run a fresh measurement of the fixed developer-storage catalog;
+- `system_health` — inspect current CPU, SSD, RAM, swap, pressure, and protected processes;
+- `cleanup_candidates` — discover the conservative compiled cleanup catalog without changing files.
+- `prepare_cleanup` / `execute_cleanup` — prepare an exact candidate-ID plan, then move explicitly confirmed items to Recovery;
+- `prepare_tool_cleanup` / `execute_tool_cleanup` — prepare and confirm only `uv-cache` or verified old `simulator-recordings` cleanup;
+- `list_recovery_items` — inspect recoverable items and their still-occupied space;
+- `prepare_recovery_action` / `execute_recovery_action` — separately confirm one exact restore or permanent purge.
+
+The MCP server accepts no path, shell text, Docker-prune target, repository, database, SDK, or runtime. Prepare calls change no files; every execution tool is marked destructive, requires the exact short-lived Rust plan and its plan-specific confirmation, revalidates identity, and records a receipt. General cleanup goes to Recovery first, and permanent reclamation is a separate single-item purge plan.
+
+After installing the app, Settings → Claude & Codex access can copy the registration commands. The equivalent commands are:
+
+```bash
+codex mcp add mac-cleaner-storage -- "$HOME/Applications/Mac Cleaner.app/Contents/Helpers/mac-cleaner-mcp"
+claude mcp add --scope user --transport stdio mac-cleaner-storage -- "$HOME/Applications/Mac Cleaner.app/Contents/Helpers/mac-cleaner-mcp"
+```
+
+Restart or begin a new agent session after registration so the host discovers the new tools.
 
 ## Developer setup
 
@@ -57,11 +83,9 @@ Requirements:
 
 - macOS 13 or newer;
 - Rust 1.96 with `aarch64-apple-darwin` and `x86_64-apple-darwin` targets;
-- Node 22.12 or newer for UI build tooling only;
-- Xcode command-line tools.
+- Xcode 16 or newer with macOS SDK and command-line tools.
 
 ```bash
-npm ci --prefix apps/mac-cleaner-desktop/ui
 ./scripts/check-rust.sh
 ./scripts/dev-rust.sh
 ```
@@ -107,7 +131,7 @@ The legacy Python LaunchAgent is not removed automatically. Startup cutover requ
 
 ## Packaging
 
-`./scripts/build-universal.sh` builds a universal CLI and universal Tauri app. Release distribution is a Developer ID signed and notarized DMG. Signing, notarization, updater credentials, Intel device QA, and upgrade/rollback verification remain release gates and are never bypassed for an alpha build.
+`./scripts/build-universal.sh` builds a universal CLI, universal Rust engine, native SwiftUI application, and unsigned development DMG. Release distribution is a Developer ID signed and notarized DMG. Signing, notarization, updater credentials, Intel device QA, and upgrade/rollback verification remain release gates and are never bypassed for an alpha build.
 
 ## License
 

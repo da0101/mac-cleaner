@@ -1,11 +1,14 @@
 //! Read-only macOS disk, memory, and process metrics.
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
 
 use chrono::Utc;
 use cleaner_domain::{
-    DiskSnapshot, MemoryPressureLevel, MemorySnapshot, ProcessSnapshot, SystemSnapshot,
+    CpuPressureLevel, CpuSnapshot, DiskSnapshot, MemoryPressureLevel, MemorySnapshot,
+    ProcessSnapshot, SystemSnapshot,
 };
 use parking_lot::Mutex;
 use sysinfo::{Disks, ProcessesToUpdate, System};
@@ -26,10 +29,18 @@ impl Default for SystemMonitor {
 impl SystemMonitor {
     pub fn capture(&self, path: &Path) -> Result<SystemSnapshot, SystemError> {
         let mut system = self.system.lock();
+        std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL + Duration::from_millis(10));
         system.refresh_memory();
+        system.refresh_cpu_usage();
         system.refresh_processes(ProcessesToUpdate::All, true);
         let processes = top_processes(&system);
         let memory = conservative_memory(&system);
+        let usage_percent = system.global_cpu_usage().clamp(0.0, 100.0);
+        let cpu = CpuSnapshot {
+            usage_percent,
+            logical_cores: u32::try_from(system.cpus().len()).unwrap_or(u32::MAX),
+            pressure: classify_cpu_pressure(usage_percent),
+        };
 
         let disks = Disks::new_with_refreshed_list();
         let disk = disks
@@ -40,6 +51,7 @@ impl SystemMonitor {
 
         Ok(SystemSnapshot {
             captured_at: Utc::now(),
+            cpu,
             memory,
             disk: DiskSnapshot {
                 total_bytes: disk.total_space(),
@@ -47,6 +59,16 @@ impl SystemMonitor {
             },
             processes,
         })
+    }
+}
+
+fn classify_cpu_pressure(usage_percent: f32) -> CpuPressureLevel {
+    if usage_percent >= 90.0 {
+        CpuPressureLevel::Critical
+    } else if usage_percent >= 70.0 {
+        CpuPressureLevel::Warning
+    } else {
+        CpuPressureLevel::Normal
     }
 }
 
@@ -161,7 +183,7 @@ pub fn capture_snapshot(path: &Path) -> Result<SystemSnapshot, SystemError> {
 }
 
 fn top_processes(system: &System) -> Vec<ProcessSnapshot> {
-    let mut processes = system
+    let processes = system
         .processes()
         .iter()
         .map(|(pid, process)| {
@@ -179,9 +201,29 @@ fn top_processes(system: &System) -> Vec<ProcessSnapshot> {
             }
         })
         .collect::<Vec<_>>();
-    processes.sort_by_key(|process| std::cmp::Reverse(process.memory_bytes));
-    processes.truncate(12);
-    processes
+
+    let mut by_memory = processes.clone();
+    by_memory.sort_by_key(|process| std::cmp::Reverse(process.memory_bytes));
+    let mut by_cpu = processes;
+    by_cpu.sort_by(|left, right| {
+        right
+            .cpu_percent
+            .total_cmp(&left.cpu_percent)
+            .then_with(|| right.memory_bytes.cmp(&left.memory_bytes))
+    });
+
+    let mut selected = Vec::with_capacity(20);
+    let mut seen = HashSet::new();
+    for process in by_memory
+        .into_iter()
+        .take(10)
+        .chain(by_cpu.into_iter().take(10))
+    {
+        if seen.insert((process.pid, process.start_time_unix)) {
+            selected.push(process);
+        }
+    }
+    selected
 }
 
 fn protection(name: &str) -> (bool, Option<String>) {
@@ -213,22 +255,33 @@ pub enum SystemError {
 mod tests {
     use std::path::Path;
 
-    use cleaner_domain::MemoryPressureLevel;
+    use cleaner_domain::{CpuPressureLevel, MemoryPressureLevel};
 
     use super::{
-        SystemMonitor, capture_snapshot, classify_memory_pressure, parse_vm_stat, protection,
+        SystemMonitor, capture_snapshot, classify_cpu_pressure, classify_memory_pressure,
+        parse_vm_stat, protection,
     };
 
     #[test]
     fn snapshot_reports_bounded_read_only_metrics() -> Result<(), Box<dyn std::error::Error>> {
         let snapshot = capture_snapshot(Path::new("/"))?;
         assert!(snapshot.memory.total_bytes > 0);
+        assert!(snapshot.cpu.usage_percent <= 100.0);
+        assert!(snapshot.cpu.logical_cores > 0);
         assert!(snapshot.memory.free_bytes <= snapshot.memory.available_bytes);
         assert!(snapshot.memory.available_bytes <= snapshot.memory.total_bytes);
         assert!(snapshot.memory.reclaimable_bytes <= snapshot.memory.available_bytes);
         assert!(snapshot.disk.available_bytes <= snapshot.disk.total_bytes);
         assert!(!snapshot.processes.is_empty());
         Ok(())
+    }
+
+    #[test]
+    fn cpu_pressure_has_clear_thresholds() {
+        assert_eq!(classify_cpu_pressure(69.9), CpuPressureLevel::Normal);
+        assert_eq!(classify_cpu_pressure(70.0), CpuPressureLevel::Warning);
+        assert_eq!(classify_cpu_pressure(89.9), CpuPressureLevel::Warning);
+        assert_eq!(classify_cpu_pressure(90.0), CpuPressureLevel::Critical);
     }
 
     #[test]

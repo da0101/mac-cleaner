@@ -30,4 +30,9 @@ if command -v ab >/dev/null 2>&1; then
   ab checkpoint --auto >/dev/null 2>&1 || true
 fi
 
+# Did this commit touch files a knowledge card names, without updating the card? One line, or nothing.
+if command -v ab >/dev/null 2>&1 && [[ -d .platform/domains ]] && git rev-parse --verify -q HEAD~1 >/dev/null 2>&1; then
+  ab recall --affected HEAD~1 --quiet 2>/dev/null || true
+fi
+
 exit 0

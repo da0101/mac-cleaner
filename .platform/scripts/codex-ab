@@ -15,7 +15,8 @@
 
 AGENTBOARD_PROVIDER="codex"
 AGENTBOARD_SESSION_ID="codex-$$-$(date +%s 2>/dev/null || printf 'unknown')"
-export AGENTBOARD_PROVIDER AGENTBOARD_SESSION_ID
+AGENTBOARD_SHELL_PID="${AGENTBOARD_SHELL_PID:-$PPID}"
+export AGENTBOARD_PROVIDER AGENTBOARD_SESSION_ID AGENTBOARD_SHELL_PID
 if [[ -d ".platform" ]] && command -v agentboard >/dev/null 2>&1; then
   _ab_stream="$(agentboard current-stream --session-id "$AGENTBOARD_SESSION_ID" --remember --quiet 2>/dev/null || true)"
   if [[ -n "$_ab_stream" ]]; then
@@ -65,7 +66,13 @@ AGENTBOARD_MODEL="gpt-5.4/$_ab_effort"
 export AGENTBOARD_MODEL
 
 # ── Log SessionStart (after effort is known) + start file poller ─────────────
+_ab_heartbeat_pid=0
 if [[ -d ".platform" ]] && declare -f _ab_session_event >/dev/null 2>&1; then
+  if declare -f _ab_start_session_heartbeat >/dev/null 2>&1; then
+    _ab_heartbeat_pid="$(_ab_start_session_heartbeat "$AGENTBOARD_SESSION_ID" "codex" 15)"
+  elif declare -f _ab_write_session_snapshot >/dev/null 2>&1; then
+    _ab_write_session_snapshot "$AGENTBOARD_SESSION_ID" "codex"
+  fi
   _ab_session_event "SessionStart" "$AGENTBOARD_SESSION_ID" "\"provider\":\"codex\",\"effort\":\"$_ab_effort\""
   _ab_poller_pid="$(_ab_start_file_poller "$AGENTBOARD_SESSION_ID" "codex" 5)"
 fi
@@ -79,6 +86,16 @@ if [[ "$_ab_poller_pid" -gt 0 ]] 2>/dev/null; then
   if declare -f _ab_stop_file_poller >/dev/null 2>&1; then
     _ab_stop_file_poller "$_ab_poller_pid"
   fi
+fi
+if [[ "$_ab_heartbeat_pid" -gt 0 ]] 2>/dev/null; then
+  if declare -f _ab_stop_session_heartbeat >/dev/null 2>&1; then
+    _ab_stop_session_heartbeat "$_ab_heartbeat_pid"
+  elif declare -f _ab_stop_file_poller >/dev/null 2>&1; then
+    _ab_stop_file_poller "$_ab_heartbeat_pid"
+  fi
+fi
+if declare -f _ab_write_session_snapshot >/dev/null 2>&1; then
+  _ab_write_session_snapshot "$AGENTBOARD_SESSION_ID" "codex"
 fi
 if declare -f _ab_check_unreasoned_changes >/dev/null 2>&1; then
   _ab_check_unreasoned_changes "$AGENTBOARD_SESSION_ID"

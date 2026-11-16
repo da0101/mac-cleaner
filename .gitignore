@@ -31,16 +31,21 @@ settings.json
 .agents/
 .codex/
 
+
 # agentboard:runtime-begin
 .platform/events.jsonl
 .platform/events-*.jsonl
 .platform/events.jsonl.archive-*
+.platform/runtime/
 .platform/.daemon-port
 .platform/.file-change-state.lock
 .platform/.file-change-state.lock.d/
 .platform/.file-change-state.tsv
 .platform/.file-locks.json
+.platform/.locks/
 .platform/.session-streams.tsv
 .platform/.watch.pid
 .platform/.watch/
+.platform/graphify/cache/
+agentboard.hud-status.json
 # agentboard:runtime-end

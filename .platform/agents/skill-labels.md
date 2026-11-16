@@ -18,8 +18,15 @@ This makes it immediately clear which skill is active during multi-skill workflo
 | ab-test-writer | `[ab-test-writer]` | 120 (green) | Unit test generation |
 | ab-security | `[ab-security]` | 196 (red) | Security audit |
 | ab-qa | `[ab-qa]` | 226 (yellow) | Manual / browser QA |
+| ab-qa-self-heal | `[ab-qa-self-heal]` | 202 (orange) | Agent-driven QA self-heal |
 | ab-review | `[ab-review]` | 183 (lavender) | Pre-PR code review |
 | ab-debug | `[ab-debug]` | 208 (amber) | Root-cause bug investigation |
+
+## Role labels
+
+Role profiles (`.platform/roles/`) use the same convention with `[role:<slug>]` labels — same blockquote format, same optional ANSI color on raw terminals (each role file declares its color). Roles and ab-* skill labels **stack**: the role says *who is working and what done looks like*; the skill says *which process stage is running*. When both are active, the role label comes first:
+
+> **`[role:debugger]`** **`[ab-debug]`**
 
 ## Rendering
 

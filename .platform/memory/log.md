@@ -45,3 +45,19 @@
 2026-08-11 — rust-modularity-and-ui — split all entrypoint/orchestration files below 307 lines, fixed comprehensive scan feedback and per-tool busy state, and made the dashboard denser with text-backed green/amber/red/blue semantics; full Rust, Clippy, React, package, and installed-app gates pass.
 
 2026-08-11 — pressure-based-memory-recovery — replaced legacy disk-cache purge and artificial-pressure generation with a 30-second Rust pressure/watchdog model, visible reclaimable/compressed/swap context, rate-limited alerts, ranked unprotected-process guidance, and a user-controlled Activity Monitor handoff; never terminate applications automatically.
+
+2026-11-16 — native-swiftui-shell — replaced Tauri/React and the legacy Python product surface with a pure SwiftUI/AppKit app plus a fixed-command Rust JSON helper; added a modern accessible menu-bar popover and storage-history UI; strict Rust tests, Swift tests, live protocol QA, universal app/helper/CLI builds, and unsigned DMG packaging pass. Mac App Store sandbox/signing remains a separate release gate.
+
+2026-11-16 — ab rescan — renewed Agentboard process files and rebuilt status, architecture, domain, security, testing, Rust, and Swift context around the verified native Swift/Rust product while marking the Python/web/AI domains retired.
+
+2026-11-16 — agent-storage-mcp — bundled a universal inspection-only Rust MCP helper, registered it globally with Codex and at user scope with Claude, and verified both hosts retrieve the same 25-hotspot saved report; agent access never grants cleanup authority.
+
+2026-11-16 — native-menubar-polish — replaced the monochrome status title with compact color-coded RAM and SSD labels and verified the final installed universal app in system/dark appearance; explicit text keeps the signal understandable without color.
+
+2026-11-16 — actionable-native-workflow — turned passive Cleanup/Quarantine/Activity states into an actionable cleanup, recovery, and verification loop; exposed MCP as Agents; enabled persisted launch scans and last-tab state; and changed the app from accessory-only to a regular foreground Mac app. Safety gates and explicit confirmation remain unchanged.
+
+2026-11-16 — cpu-and-agent-cleanup — exposed accurate total/per-process CPU in the native menu bar, popover, Overview, and MCP; expanded MCP from inspection to exact-plan confirmed cleanup/recovery without accepting paths or weakening repository, toolchain, runtime, or database protections.
+
+2026-11-16 — semantic-menubar-status — moved the status label to a native AppKit status item so RAM, CPU, and SSD retain distinct pressure-colored SF Symbols; kept the SwiftUI popover and fixed the refresh spinner to replace its arrow inside one stable circle.
+
+2026-11-16 — popover-brand-and-contrast — replaced the generic sparkle with a generated Mac Cleaner storage-health mark and made popover values, progress, captions, and process pressure readable against an opaque native surface.

@@ -9,7 +9,7 @@ repo_ids: [mac-cleaner]
 base_branch: main
 git_branch: main
 created_at: 2026-04-29
-updated_at: 2026-04-29
+updated_at: 2026-11-16
 closure_approved: false
 ---
 
@@ -42,10 +42,10 @@ _Append-only. Format: `YYYY-MM-DD — <decision> — <rationale>`_
 ## Resume state
 _Overwritten by `ab checkpoint` — the compact payload the next agent reads first. Keep this block under ~10 lines._
 
-- **Last updated:** 2026-04-29 by danilulmashev
-- **What just happened:** Prepared v1.1.0 release docs and updated the terminal server banner to v1.1.
-- **Current focus:** —
-- **Next action:** Create and push the v1.1.0 release tag on the release-docs commit.
+- **Last updated:** 2026-11-16 by codex
+- **What just happened:** The modular Python server completed its historical purpose and was removed after the native Swift/Rust replacement passed parity and packaging gates.
+- **Current focus:** Historical stream retained for owner closure review.
+- **Next action:** Owner may close/archive this superseded stream; do not publish the obsolete v1.1 server release.
 - **Blockers:** none
 
 ## Progress log

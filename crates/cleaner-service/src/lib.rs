@@ -207,6 +207,13 @@ impl AppService {
         Ok(plan)
     }
 
+    pub fn quarantine_action_plan(
+        &self,
+        action_id: Uuid,
+    ) -> Result<QuarantineActionPlan, ServiceError> {
+        Ok(self.store.load_quarantine_action(action_id)?)
+    }
+
     pub fn approve_quarantine_action(&self, action_id: Uuid) -> Result<(), ServiceError> {
         if self.quarantine_approvals.lock().contains_key(&action_id) {
             return Err(ServiceError::AlreadyApproved(action_id));

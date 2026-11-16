@@ -1,9 +1,10 @@
 # Playbook
 
 <!-- agentboard:playbook:begin -->
-- **Run tests** — `python3 -m unittest`
-- **Start dashboard** — `./start` then open `http://localhost:3333`
-- **Run CLI scan** — `./clean`
-- **Dashboard QA** — use Playwright against `http://127.0.0.1:3333` with installed Google Chrome; verify settings modal, theme toggle, and hidden-widget polling before closing UI streams.
-- **Release** — run tests, commit, tag with `git tag -a vX.Y.Z`, push `main`, then push the tag.
+- **Run full checks** — `./scripts/check-rust.sh` runs formatting, strict Clippy, Rust tests, and native Swift tests.
+- **Run native app** — `./scripts/dev-rust.sh` builds the SwiftUI app, embeds the Rust engine, and opens the debug bundle.
+- **Run CLI scan** — `cargo run -p mac-cleaner -- scan`; mutations still require exact candidate IDs and typed confirmation.
+- **Build universal package** — `./scripts/build-universal.sh` builds arm64+x86_64 CLI/app/helper plus an unsigned development DMG.
+- **Native QA** — verify overview, storage history/filter/copy, cleanup plan confirmation, quarantine restore/purge confirmation, menu-bar metrics, settings, and activity without mutating live data.
+- **Release** — complete signing/sandbox/notarization requirements for the chosen channel, archive in Xcode, run Intel and upgrade/rollback QA, then tag and publish.
 <!-- agentboard:playbook:end -->

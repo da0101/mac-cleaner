@@ -10,6 +10,7 @@ mod quarantine;
 mod scanner;
 mod storage_analysis;
 mod storage_catalog;
+mod storage_project_catalog;
 
 pub use error::FsError;
 pub use executor::PlanExecutor;

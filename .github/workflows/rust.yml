@@ -26,19 +26,6 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22.17.0
-          cache: npm
-          cache-dependency-path: apps/mac-cleaner-desktop/ui/package-lock.json
-      - name: Install locked frontend dependencies
-        run: npm ci --prefix apps/mac-cleaner-desktop/ui
-      - name: Audit frontend dependencies
-        run: npm audit --prefix apps/mac-cleaner-desktop/ui --audit-level=moderate
-      - name: Test and build bundled interface
-        run: |
-          npm test --prefix apps/mac-cleaner-desktop/ui
-          npm run build --prefix apps/mac-cleaner-desktop/ui
       - name: Check Rust formatting
         run: cargo fmt --all --check
       - name: Lint every Rust target
@@ -47,3 +34,23 @@ jobs:
         run: cargo test --workspace --target ${{ matrix.target }}
       - name: Build native binaries
         run: cargo build --workspace --target ${{ matrix.target }}
+      - name: Build native SwiftUI application
+        run: |
+          xcodebuild \
+            -project apps/mac-cleaner-macos/MacCleanerNative.xcodeproj \
+            -scheme MacCleanerNative \
+            -configuration Debug \
+            -derivedDataPath "$RUNNER_TEMP/mac-cleaner-native" \
+            -destination 'generic/platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES \
+            build
+      - name: Run native Swift tests
+        if: matrix.target == 'aarch64-apple-darwin'
+        run: |
+          xcodebuild test \
+            -project apps/mac-cleaner-macos/MacCleanerNative.xcodeproj \
+            -scheme MacCleanerNative \
+            -configuration Debug \
+            -derivedDataPath "$RUNNER_TEMP/mac-cleaner-native-tests" \
+            -destination 'platform=macOS,arch=arm64' \
+            CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES

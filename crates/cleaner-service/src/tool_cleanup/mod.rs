@@ -7,8 +7,8 @@ use std::time::Duration;
 
 use chrono::Utc;
 use cleaner_domain::{
-    StorageAnalysis, ToolCleanupKind, ToolCleanupOperation, ToolCleanupPlan, ToolCleanupReceipt,
-    ToolCleanupState,
+    StorageAnalysis, StorageCategory, StorageComparisonKind, StorageComparisonState,
+    ToolCleanupKind, ToolCleanupOperation, ToolCleanupPlan, ToolCleanupReceipt, ToolCleanupState,
 };
 use uuid::Uuid;
 
@@ -18,6 +18,10 @@ use crate::{AppService, ServiceError};
 const SIMULATOR_RECORDING_MIN_AGE: Duration = Duration::from_hours(72);
 
 impl AppService {
+    pub fn latest_storage_analysis(&self) -> Result<Option<StorageAnalysis>, ServiceError> {
+        Ok(self.store.latest_storage_snapshot()?)
+    }
+
     pub async fn analyze_storage(&self) -> Result<StorageAnalysis, ServiceError> {
         let _guard = self
             .analysis_gate
@@ -41,7 +45,11 @@ impl AppService {
                 display_name: "Simulator test recordings".to_owned(),
                 path: target.path,
                 bytes: target.bytes,
+                category: StorageCategory::TestArtifacts,
                 disposition: cleaner_domain::StorageDisposition::Reviewable,
+                comparison_state: StorageComparisonState::NoBaseline,
+                previous_bytes: None,
+                delta_bytes: None,
                 reason: format!(
                     "{} old QuickTime test recordings from {}. App data and the simulator itself are outside this target.",
                     target.files.len(), target.device_name
@@ -60,7 +68,24 @@ impl AppService {
                 .hotspots
                 .sort_by_key(|item| std::cmp::Reverse(item.bytes));
         }
+        let comparison = if let Some(baseline) = self.store.storage_baseline()? {
+            Some((baseline, StorageComparisonKind::Baseline))
+        } else {
+            self.store
+                .latest_storage_snapshot()?
+                .map(|snapshot| (snapshot, StorageComparisonKind::Previous))
+        };
+        report.compare_with(
+            comparison
+                .as_ref()
+                .map(|(snapshot, kind)| (snapshot, *kind)),
+        );
+        self.store.save_storage_snapshot(&report)?;
         Ok(report)
+    }
+
+    pub fn set_storage_baseline(&self, snapshot_id: Uuid) -> Result<(), ServiceError> {
+        Ok(self.store.set_storage_baseline(snapshot_id)?)
     }
 
     pub async fn prepare_uv_cache_prune(&self) -> Result<ToolCleanupPlan, ServiceError> {
@@ -144,6 +169,10 @@ impl AppService {
             .mark_tool_cleanup_approved(plan_id, Uuid::new_v4(), approved_at)?;
         self.tool_cleanup_approvals.lock().insert(plan_id, plan);
         Ok(())
+    }
+
+    pub fn tool_cleanup_plan(&self, plan_id: Uuid) -> Result<ToolCleanupPlan, ServiceError> {
+        Ok(self.store.load_tool_cleanup_plan(plan_id)?)
     }
 
     pub async fn execute_tool_cleanup(

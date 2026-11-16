@@ -1,8 +1,8 @@
 # Python Conventions — mac-cleaner
 
-- Keep scripts runnable with `python3`.
-- Prefer stdlib unless a dependency is documented in `requirements.txt`.
-- Use `pathlib.Path` for filesystem paths.
-- Use subprocess argument lists, timeouts, and defensive error handling.
-- Split files over ~300 lines before adding substantial behavior.
+<!-- updated: 2026-11-16 — Python product code was retired; this card is historical and must not guide new implementation. -->
+
+- No Python source, runtime, package, or build step belongs in the active product branch.
+- Historical Python behavior is available only through Git history for migration/reference work.
+- Implement new backend behavior in the Rust workspace and native presentation in SwiftUI/AppKit.
 

@@ -2,11 +2,14 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-if [[ -x /opt/homebrew/opt/node@22/bin/node ]]; then
-  export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
-fi
-app_dir="$repo_root/apps/mac-cleaner-desktop"
-tauri_cli="$app_dir/ui/node_modules/.bin/tauri"
+native_dir="$repo_root/apps/mac-cleaner-macos"
+derived_dir="$repo_root/target/native-dev"
 
-cd "$app_dir"
-exec "$tauri_cli" dev
+xcodebuild \
+  -project "$native_dir/MacCleanerNative.xcodeproj" \
+  -scheme MacCleanerNative \
+  -configuration Debug \
+  -derivedDataPath "$derived_dir" \
+  CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES \
+  build
+open "$derived_dir/Build/Products/Debug/Mac Cleaner.app"

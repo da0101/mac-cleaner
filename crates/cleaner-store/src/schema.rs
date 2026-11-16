@@ -90,4 +90,11 @@ CREATE TABLE IF NOT EXISTS legacy_history (
     occurred_at TEXT,
     summary_json TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS storage_snapshots (
+    id TEXT PRIMARY KEY,
+    captured_at TEXT NOT NULL,
+    snapshot_json TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS storage_snapshots_captured_at
+    ON storage_snapshots(captured_at DESC);
 ";

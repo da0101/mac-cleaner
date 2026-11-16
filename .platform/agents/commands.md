@@ -70,7 +70,7 @@ When I say **"archive stream"**, you MUST:
 1. **Verify** that `closure_approved: true` is present in the stream file.
 2. **Update** `.platform/STATUS.md` and any relevant deep-reference files.
 3. **Log** the outcome in `.platform/memory/log.md`.
-4. **Move** the file to `.platform/work/archive/`.
+4. **Run** `ab close <slug> --confirm` — merges the `## Knowledge delta` into the domain cards and moves the stream file (and its QA artifacts) out of the repo; nothing accumulates in `work/archive/`.
 
 ### `status check`
 When I say **"status check"**, you MUST:
@@ -108,6 +108,29 @@ When the user types one of these phrases, **run the associated CLI command** (do
 | "start a new stream", "new task", "let's work on…" | `ab new-stream <slug> --domain <d>` | Then fill the stream file with context and update `work/BRIEF.md`. |
 | "usage summary", "how much have we spent", "token report" | `ab usage summary` | Global 30-day totals. Use `usage dashboard --week` for visual output. |
 | "update ab", "pull latest ab files" | `ab update` | Refreshes shipped protocol files without touching project-specific docs. |
+| "log the reason", "annotate that change", "why did you change that" | `ab log-reason [<file>] "<why>"` | One sentence on WHY the edit was made. Full spec in §5 below. |
 
 ### Hard rule
 When a phrase from this table appears in conversation, **run the command** before doing anything else. Do not describe the command. Do not ask for confirmation unless the command is destructive (close --confirm). Just run it and show the output.
+
+---
+
+## 5. `ab log-reason` — reasoning annotation spec
+
+```bash
+ab log-reason [<file>] "<one sentence why>"
+```
+
+- **One argument** → the argument is the reason; no file is attached.
+- **Two arguments** → first is the file path (a leading `./` is stripped), second is the reason.
+- The reason must be non-empty. `ab log-reason --help` prints usage.
+
+**Where it writes:** appends one JSON line to `.platform/events.jsonl` (via a loopback HTTP request to the local daemon when `.platform/.daemon-port` is live, otherwise by direct append). The event shape is:
+
+```json
+{"hook_event_name":"Reason","ts":"<UTC ISO-8601>","provider":"<claude|codex|gemini>","stream":"<slug>","file":"<path, only if given>","reason":"<text>"}
+```
+
+The stream is resolved automatically: if `<file>` is itself a stream file (`.platform/work/<slug>.md`), that slug wins; otherwise the currently active stream is used. Provider comes from `AGENTBOARD_PROVIDER` (defaults to `claude`).
+
+**When to call it** (after any significant Write/Edit): refactors and extractions, deletions of non-obvious code, new abstractions or interfaces, architectural choices not obvious from the code. **Skip for:** formatting, typo fixes, obvious renames. This is what lets the next agent see *why* a change was made, not just *what* changed.

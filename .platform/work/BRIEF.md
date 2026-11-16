@@ -1,28 +1,29 @@
 # Feature Brief — mac-cleaner
 
-**Feature:** Full Rust application rewrite
-**Status:** in-progress
-**Stream file:** `work/full-rust-rewrite.md`
+**Feature:** Native SwiftUI macOS shell with Rust backend
+**Status:** closure-review
+**Stream file:** `work/native-swiftui-shell.md`
 
 ## What we're building
 
-Replace the Python cleaner, localhost dashboard, and menu-bar scripts with a release-grade Rust macOS application and CLI built around a fail-closed cleanup policy.
+Replace the Tauri/React shell with a pure SwiftUI/AppKit macOS application while retaining the Rust engine, policy, storage history, and persistence.
 
 ## Why
 
-The existing cleanup surfaces can delete targets based on a broad `cleanable` flag without enforcing safety tiers. The replacement must protect repositories, application state, development toolchains, and unknown data by construction.
+The product is macOS-only and should use native controls, lifecycle, accessibility, and packaging without a web runtime or third-party UI framework.
 
 ## Done looks like
 
-- The shipped app and CLI require no Python or Node runtime.
-- Cleanup execution accepts only a fresh, immutable, confirmed server-owned plan.
-- Automatic storage cleanup begins with an empty allowlist.
-- The native app owns monitoring, menu bar, login startup, settings/history, and universal macOS packaging.
+- A native SwiftUI `.app` provides feature parity with the current desktop shell.
+- A bundled Rust helper exposes only typed, policy-gated operations and identifiers.
+- Storage forensics remains compact, searchable, historical, and copyable.
+- Tauri, React, Python, and the web frontend are removed after native verification.
+- The Rust engine, Swift app, universal packaging, and local safety gates pass; App Store sandbox/signing is a separate release follow-up.
 
 ## Relevant context
 
+- `.platform/domains/native-macos-shell.md`
+- `.platform/domains/storage-forensics.md`
 - `.platform/domains/rust-application.md`
 - `.platform/domains/safe-cleanup-policy.md`
-- `.platform/domains/memory-optimization.md`
-- `.platform/domains/local-dashboard.md`
 - `.platform/conventions/testing.md`

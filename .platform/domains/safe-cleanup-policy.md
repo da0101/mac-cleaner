@@ -4,7 +4,7 @@ slug: safe-cleanup-policy
 status: active
 repo_ids: [mac-cleaner]
 created_at: 2026-08-10
-updated_at: 2026-08-10
+updated_at: 2026-11-16
 ---
 
 # safe-cleanup-policy
@@ -25,6 +25,7 @@ The cleanup policy separates discovery from authorization and treats unknown fil
 4. Execution reacquires a cross-process mutation lock and revalidates containment and identity immediately before mutation.
 5. Changed, linked, mounted, protected, expired, replayed, or unknown targets fail closed.
 6. Every transition and completed item is journaled before and after mutation; crash recovery never resumes deletion automatically.
+7. MCP uses the same contract: prepare tools return an exact plan and plan-bound phrase; destructive execution tools reject paths and run only after explicit confirmation. Recoverable cleanup and permanent purge remain separate actions.
 
 Read-only storage hotspots are explanatory only. Their size, label, or recommendation cannot be converted into a cleanup plan unless the path is independently rediscovered by the versioned cleanup catalog and passes the normal planning contract.
 
@@ -39,3 +40,12 @@ Read-only storage hotspots are explanatory only. Their size, label, or recommend
 ## Test boundary
 
 Destructive tests run only inside an isolated temporary fake home or disposable APFS image containing outside-canary files. They must never point at a real home directory.
+
+## Key files
+
+- `crates/cleaner-policy/src/`
+- `crates/cleaner-fs/src/scanner.rs`
+- `crates/cleaner-fs/src/executor.rs`
+- `crates/cleaner-service/src/lib.rs`
+- `crates/cleaner-fs/tests/safety.rs`
+- `crates/cleaner-service/tests/service_flow.rs`

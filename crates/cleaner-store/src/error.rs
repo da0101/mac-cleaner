@@ -24,6 +24,8 @@ pub enum StoreError {
     QuarantineActionNotFound(Uuid),
     #[error("tool cleanup plan was not found: {0}")]
     ToolCleanupPlanNotFound(Uuid),
+    #[error("storage snapshot was not found: {0}")]
+    StorageSnapshotNotFound(Uuid),
     #[error("invalid tool cleanup transition for {plan_id}: expected {expected}, requested {next}")]
     InvalidToolCleanupTransition {
         plan_id: Uuid,

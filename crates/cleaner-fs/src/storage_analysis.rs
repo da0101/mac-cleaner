@@ -3,11 +3,16 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use chrono::Utc;
-use cleaner_domain::{StorageAnalysis, StorageDisposition, StorageHotspot, StoragePressure};
+use cleaner_domain::{
+    STORAGE_CATALOG_VERSION, StorageAnalysis, StorageComparisonState, StorageDisposition,
+    StorageHotspot, StoragePressure,
+};
+use uuid::Uuid;
 
 use crate::FsError;
 use crate::metadata::{metadata_no_follow, validate_home_state};
-use crate::storage_catalog::{HotspotSpec, ProjectKind, fixed_specs, project_specs};
+use crate::storage_catalog::{HotspotSpec, fixed_specs};
+use crate::storage_project_catalog::{ProjectKind, project_specs, project_test_specs};
 
 const MAX_ENTRIES_PER_HOTSPOT: u64 = 500_000;
 const CRITICAL_BYTES: u64 = 10 * 1024 * 1024 * 1024;
@@ -62,6 +67,8 @@ impl StorageAnalyzer {
         };
 
         Ok(StorageAnalysis {
+            snapshot_id: Uuid::new_v4(),
+            catalog_version: STORAGE_CATALOG_VERSION,
             captured_at: Utc::now(),
             total_bytes,
             available_bytes,
@@ -69,6 +76,7 @@ impl StorageAnalyzer {
             reviewable_bytes,
             hotspots,
             warnings,
+            comparison: None,
         })
     }
 
@@ -116,6 +124,11 @@ impl StorageAnalyzer {
                 self.add_hotspot(hotspots, warnings, device, spec);
             }
         }
+        if root.join("Cargo.toml").is_file() {
+            for spec in project_specs(root, ProjectKind::Rust) {
+                self.add_hotspot(hotspots, warnings, device, spec);
+            }
+        }
         if root.join("pyproject.toml").is_file() || root.join("requirements.txt").is_file() {
             let cache = root.join(".cache");
             if cache.exists() {
@@ -126,6 +139,9 @@ impl StorageAnalyzer {
                     HotspotSpec::project_cache(cache),
                 );
             }
+        }
+        for spec in project_test_specs(root) {
+            self.add_hotspot(hotspots, warnings, device, spec);
         }
     }
 
@@ -150,7 +166,11 @@ impl StorageAnalyzer {
                 display_name: spec.display_name,
                 path,
                 bytes,
+                category: spec.category,
                 disposition: spec.disposition,
+                comparison_state: StorageComparisonState::NoBaseline,
+                previous_bytes: None,
+                delta_bytes: None,
                 reason: spec.reason,
                 recommendation: spec.recommendation,
                 recovery_cost: spec.recovery_cost,

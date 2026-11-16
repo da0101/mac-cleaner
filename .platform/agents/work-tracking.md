@@ -47,8 +47,8 @@ This keeps context windows lean and prevents agents from being briefed on work t
    - **No** → create it first (see `agents/context-organization.md`). A workstream without a domain file has no focused context for the next agent to load.
 2. **Update `work/BRIEF.md`** — replace with the new feature brief; set `## Relevant context` to the domain file(s) this workstream touches.
 3. Copy `TEMPLATE.md` to `work/<stream-slug>.md`
-4. Fill in the frontmatter first: `stream_id`, `slug`, `type`, `status`, `agent_owner`, `domain_slugs`, `repo_ids`, `created_at`, `updated_at`
-   `stream_id` should stay canonical: `stream-<slug>`.
+4. Fill in the frontmatter first: `stream_id`, `slug`, `type`, `status`, `agent_owner`, `domain_slugs`, `repo_ids`, `base_branch`, `git_branch`, `created_at`, `updated_at`, `closure_approved`
+   `stream_id` should stay canonical: `stream-<slug>`. Defaults: `base_branch: develop`, `git_branch: feature/<slug>` (or `bugfix/<slug>`), `closure_approved: false` (only the human flips it to `true` at closure).
 5. Fill in: scope (3–5 bullets), done criteria (measurable), next action
 6. Add a row to `ACTIVE.md`
 
@@ -95,7 +95,7 @@ When all done criteria are met:
 2. Agent posts done-criteria checklist with ✅/❌ for each item
 3. **User confirms** — agent cannot self-approve
 4. On confirmation:
-   - Move `work/<slug>.md` → `work/archive/<slug>.md`
+   - Write the `## Knowledge delta`, then `ab close <slug> --confirm` (merges into `domains/*.md`, moves the stream + QA files out of the repo)
    - Remove row from `ACTIVE.md`
    - Append one line to `.platform/memory/log.md`
    - Update `memory/` if anything learned should persist cross-session
