@@ -61,3 +61,5 @@
 2026-11-16 — semantic-menubar-status — moved the status label to a native AppKit status item so RAM, CPU, and SSD retain distinct pressure-colored SF Symbols; kept the SwiftUI popover and fixed the refresh spinner to replace its arrow inside one stable circle.
 
 2026-11-16 — popover-brand-and-contrast — replaced the generic sparkle with a generated Mac Cleaner storage-health mark and made popover values, progress, captions, and process pressure readable against an opaque native surface.
+
+- 2026-11-16 — commit `d625ab5`: feat: ship native Swift Mac Cleaner — auto-logged
