@@ -63,3 +63,5 @@
 2026-11-16 — popover-brand-and-contrast — replaced the generic sparkle with a generated Mac Cleaner storage-health mark and made popover values, progress, captions, and process pressure readable against an opaque native surface.
 
 - 2026-11-16 — commit `d625ab5`: feat: ship native Swift Mac Cleaner — auto-logged
+
+- 2026-11-16 — commit `dd0dfa2`: feat: make cleanup actionable and hand off QA — auto-logged
