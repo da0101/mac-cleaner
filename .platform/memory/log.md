@@ -69,3 +69,5 @@
 - 2026-11-16 — commit `5f0a857`: chore: record cleanup handoff checkpoint — auto-logged
 
 - 2026-11-17 — commit `085e760`: chore: remove legacy Python-era config, conventions, and retired domain docs — auto-logged
+
+- 2026-11-17 — commit `8c16739`: chore: remove Python-era work streams — auto-logged
