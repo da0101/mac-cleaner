@@ -40,7 +40,24 @@ const NEVER_QUIT: &[&str] = &[
     "xcode",
     "visual studio code",
     "cursor",
+    "intellij",
+    "pycharm",
+    "webstorm",
+    "goland",
+    "clion",
+    "datagrip",
+    "rubymine",
+    "phpstorm",
+    "sublime",
+    "windsurf",
+    "orbstack",
+    "parallels",
+    "vmware",
+    "virtualbox",
 ];
+
+/// Names too short to match as a substring (`Code` would also hit `Barcode`).
+const NEVER_QUIT_EXACT: &[&str] = &["code", "zed", "nova", "rider", "utm"];
 
 /// A request that was quit within this window and is still running counts as refused.
 const RETRY_WINDOW_MINUTES: i64 = 30;
@@ -51,7 +68,8 @@ const MAX_QUIT_APPS: usize = 40;
 #[must_use]
 pub fn is_never_quit(name: &str) -> bool {
     let lower = name.trim().to_lowercase();
-    NEVER_QUIT.iter().any(|blocked| lower.contains(blocked))
+    NEVER_QUIT_EXACT.contains(&lower.as_str())
+        || NEVER_QUIT.iter().any(|blocked| lower.contains(blocked))
 }
 
 /// Clamp and clean owner-supplied settings. Unknown or protected entries are
@@ -253,4 +271,14 @@ struct Group {
 
 fn secs_between(earlier: DateTime<Utc>, later: DateTime<Utc>) -> u64 {
     u64::try_from((later - earlier).num_seconds().max(0)).unwrap_or(0)
+}
+
+/// Substring names for the app picker, so the screen never offers an app Rust would refuse.
+#[must_use]
+pub fn never_quit_names() -> Vec<String> {
+    NEVER_QUIT
+        .iter()
+        .chain(NEVER_QUIT_EXACT.iter())
+        .map(|name| (*name).to_owned())
+        .collect()
 }

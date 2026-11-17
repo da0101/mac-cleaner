@@ -15,6 +15,12 @@ enum EngineCommand: Sendable {
     case prepareSimulatorRecordings
     case executeToolCleanup(UUID)
     case toolHistory(Int)
+    case autoSettings
+    case autoSettingsSet(String)
+    case autoTick
+    case autoReportQuit(String, UInt64)
+    case autoLog(Int)
+    case autoProtectedApps
 
     var arguments: [String] {
         switch self {
@@ -33,6 +39,12 @@ enum EngineCommand: Sendable {
         case .prepareSimulatorRecordings: ["prepare-simulator-recordings"]
         case .executeToolCleanup(let id): ["execute-tool-cleanup", id.uuidString]
         case .toolHistory(let limit): ["tool-history", "--limit", String(min(max(limit, 1), 100))]
+        case .autoSettings: ["auto-settings"]
+        case .autoSettingsSet(let json): ["auto-settings-set", json]
+        case .autoTick: ["auto-tick"]
+        case .autoReportQuit(let app, let bytes): ["auto-report-quit", "--", app, String(bytes)]
+        case .autoLog(let limit): ["auto-log", "--limit", String(min(max(limit, 1), 100))]
+        case .autoProtectedApps: ["auto-protected-apps"]
         }
     }
 }

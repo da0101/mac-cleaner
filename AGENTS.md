@@ -24,11 +24,11 @@ Single GitHub repository: `da0101/mac-cleaner`.
 
 1. Never delete user documents, photos, source repos, credentials, app databases, keychains, or unknown data by default.
 2. Clients never supply cleanup paths. Rust discovers versioned candidates and owns plans, approvals, revalidation, quarantine, restore/purge, and receipts.
-3. Never close, kill, signal, or manipulate editors, agents, terminals, compilers, or active developer jobs automatically.
-4. Memory recovery is pressure-based and advisory: never invoke `purge`, manufacture memory pressure, or claim disk-cache flushing frees application RAM.
+3. Never close, kill, signal, or manipulate editors, agents, terminals, compilers, or active developer jobs automatically. Exception, owner-approved 2026-11-17: apps the owner explicitly lists in Auto-Clean (never developer tools, Docker, or system apps) may be asked to quit the normal way when memory stays low.
+4. Memory recovery is pressure-based and advisory: never invoke `purge`, manufacture memory pressure, or claim disk-cache flushing frees application RAM. Auto-Clean only asks opted-in apps to quit; it still never runs `purge` or kills a process.
 5. Open no localhost server or web view; Swift invokes only the fixed helper resolved from the application bundle.
 6. Do not read, print, or log `.env` contents, credentials, file contents, or other secrets.
-7. Storage findings are explanatory only and never become deletion authority without independent catalog discovery and a fresh confirmed plan.
+7. Storage findings are explanatory only and never become deletion authority without independent catalog discovery and a fresh confirmed plan. Exception, owner-approved 2026-11-17: Auto-Clean may remove only catalog categories the owner opted into, idle 24+ hours, through the same plan, quarantine, purge, and receipt pipeline.
 8. Keep Xcode/Android SDKs and runtimes, repositories/worktrees, package stores, Docker databases, credentials, and unknown paths protected.
 9. Use SwiftUI/AppKit for presentation and Rust for backend behavior; do not reintroduce Python or TypeScript product code.
 

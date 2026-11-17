@@ -192,6 +192,7 @@ struct RootView: View {
         case .cleanup: CleanupView()
         case .quarantine: QuarantineView()
         case .activity: ActivityView()
+        case .autoClean: AutoCleanView()
         case .agents: AgentAccessView()
         }
     }

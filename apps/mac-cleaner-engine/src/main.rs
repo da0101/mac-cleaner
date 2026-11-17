@@ -80,6 +80,8 @@ enum Command {
         #[arg(long, default_value_t = 30)]
         limit: u32,
     },
+    /// Names of apps that can never be put on the quit list.
+    AutoProtectedApps,
 }
 
 const MAX_AUTO_SETTINGS_BYTES: usize = 16 * 1024;
@@ -211,6 +213,7 @@ async fn run(cli: Cli) -> Result<Value> {
             json!({ "recorded": true })
         }
         Command::AutoLog { limit } => serde_json::to_value(service.auto_log(limit)?)?,
+        Command::AutoProtectedApps => serde_json::to_value(service.auto_protected_apps())?,
     };
     Ok(data)
 }

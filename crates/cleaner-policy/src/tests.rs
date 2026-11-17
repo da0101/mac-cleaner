@@ -221,6 +221,10 @@ mod auto_policy {
             assert!(is_never_quit(name), "{name}");
         }
         assert!(!is_never_quit("Google Chrome"));
+        assert!(!is_never_quit("Barcode Scanner"));
+        assert!(!is_never_quit("Autumn Leaves"));
+        assert!(!is_never_quit("Spider Solitaire"));
+        assert!(!is_never_quit("Barcode Scanner"));
         let mut bad = AutoCleanSettings::default();
         bad.ram.quit_apps = vec!["Docker Desktop".to_owned()];
         assert!(validate_auto_settings(bad).is_err());

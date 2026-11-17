@@ -24,9 +24,14 @@ final class AppModel: ObservableObject {
     @Published var pendingCleanupPlan: CleanupPlan?
     @Published var pendingQuarantinePlan: QuarantineActionPlan?
     @Published var pendingToolPlan: ToolCleanupPlan?
+    @Published private(set) var autoSettings = AutoCleanSettings()
+    @Published private(set) var autoLog: [AutoLogEntry] = []
+    @Published private(set) var autoStatus = "Auto-clean is off."
+    @Published private(set) var autoProtectedApps: [String] = []
 
     private let engine: EngineClient?
     private var monitorTask: Task<Void, Never>?
+    private var autoTask: Task<Void, Never>?
     private var lastPressure = "normal"
 
     init(engine: EngineClient? = nil) {
@@ -54,6 +59,7 @@ final class AppModel: ObservableObject {
                 try? await Task.sleep(for: .seconds(5))
             }
         }
+        startAutoClean()
         Task {
             await refreshCollections()
             let defaults = UserDefaults.standard
@@ -64,6 +70,115 @@ final class AppModel: ObservableObject {
                 await analyzeStorage()
                 await scanCleanup()
             }
+        }
+    }
+
+    // MARK: Auto-clean
+
+    /// Runs for the life of the app. Rust owns every decision; this loop only
+    /// asks it what to do every 30 seconds and carries out an app quit request.
+    func startAutoClean() {
+        guard autoTask == nil else { return }
+        autoTask = Task { [weak self] in
+            await self?.loadAutoClean()
+            while !Task.isCancelled {
+                await self?.autoTick()
+                try? await Task.sleep(for: .seconds(30))
+            }
+        }
+    }
+
+    func loadAutoClean() async {
+        guard let engine else { return }
+        do {
+            autoSettings = try await engine.run(.autoSettings)
+            autoLog = try await engine.run(.autoLog(30))
+            autoProtectedApps = try await engine.run(.autoProtectedApps)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    /// Saves the owner's choices. Rust validates and clamps them, so what comes
+    /// back is what is stored; a rejected change leaves the old settings.
+    func saveAutoSettings(_ settings: AutoCleanSettings) async {
+        guard let engine else { return }
+        do {
+            let encoder = JSONEncoder()
+            encoder.keyEncodingStrategy = .convertToSnakeCase
+            let json = String(decoding: try encoder.encode(settings), as: UTF8.self)
+            autoSettings = try await engine.run(.autoSettingsSet(json))
+            error = nil
+            if !autoSettings.ram.enabled && !autoSettings.storage.enabled {
+                autoStatus = "Auto-clean is off."
+            }
+        } catch {
+            self.error = error.localizedDescription
+        }
+        await loadAutoClean()
+    }
+
+    func autoTick() async {
+        guard let engine, autoSettings.ram.enabled || autoSettings.storage.enabled else { return }
+        do {
+            let report: AutoTickReport = try await engine.run(.autoTick)
+            autoStatus = Self.describe(report.ram, settings: autoSettings)
+            if report.ram.kind == "quit", let target = report.ram.target {
+                await requestQuit(target, engine: engine)
+            }
+            if let storage = report.storage, storage.items > 0 {
+                notice = "Auto-clean removed \(storage.items) item(s) and freed \(Formatting.bytes(storage.bytesFreed))."
+                autoLog = (try? await engine.run(.autoLog(30))) ?? autoLog
+                await refreshCollections(using: engine)
+                scan = try? await engine.run(.scan)
+            }
+        } catch {
+            autoStatus = "Auto-clean paused: \(error.localizedDescription)"
+        }
+    }
+
+    /// Asks one app to quit the normal way (like ⌘Q), so unsaved documents can
+    /// still prompt. Only bundles in an Applications folder are ever asked.
+    private func requestQuit(_ target: AutoQuitTarget, engine: EngineClient) async {
+        let allowed = ["/Applications/", NSHomeDirectory() + "/Applications/"]
+        guard allowed.contains(where: { target.appPath.hasPrefix($0) }) else { return }
+        let running = NSWorkspace.shared.runningApplications.filter {
+            $0.bundleURL?.path == target.appPath && $0.bundleIdentifier != Bundle.main.bundleIdentifier
+        }
+        guard !running.isEmpty else { return }
+        for app in running { _ = app.terminate() }
+        do {
+            let _: AutoRecorded = try await engine.run(.autoReportQuit(target.appName, target.bytes))
+            autoLog = try await engine.run(.autoLog(30))
+        } catch {
+            self.error = error.localizedDescription
+        }
+        notice = "Low memory: asked \(target.appName) to quit (about \(Formatting.bytes(target.bytes)))."
+        await postQuitNotification(target)
+    }
+
+    private func postQuitNotification(_ target: AutoQuitTarget) async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        guard settings.authorizationStatus == .authorized else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Freed memory by quitting \(target.appName)"
+        content.body = "Available memory stayed low. \(target.appName) was using about \(Formatting.bytes(target.bytes))."
+        try? await UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: "auto-quit-\(target.appName)", content: content, trigger: nil)
+        )
+    }
+
+    static func describe(_ decision: AutoRamDecision, settings: AutoCleanSettings) -> String {
+        guard settings.ram.enabled else {
+            return settings.storage.enabled ? "Scheduled cleanup is on. Memory relief is off." : "Auto-clean is off."
+        }
+        switch decision.kind {
+        case "healthy": return "Memory is healthy. Watching every 30 seconds."
+        case "waiting": return "Memory is low. Acting in \(decision.secsRemaining ?? 0)s if it stays low."
+        case "cooldown": return "Quit requested recently. Next check in \(decision.secsRemaining ?? 0)s."
+        case "no_targets": return decision.reason ?? "Memory is low, but nothing on your list can be quit."
+        case "quit": return "Asking \(decision.target?.appName ?? "an app") to quit."
+        default: return "Auto-clean is off."
         }
     }
 

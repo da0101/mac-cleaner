@@ -199,6 +199,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case storage = "Storage"
     case quarantine = "Recovery"
     case activity = "History"
+    case autoClean = "Auto-Clean"
     case agents = "Agents"
     var id: Self { self }
     var symbol: String {
@@ -208,7 +209,69 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .cleanup: "trash"
         case .quarantine: "archivebox"
         case .activity: "list.bullet.rectangle.portrait"
+        case .autoClean: "bolt.circle"
         case .agents: "point.3.connected.trianglepath.dotted"
         }
     }
+}
+
+// MARK: - Auto-clean
+
+struct AutoRamSettings: Codable, Equatable, Sendable {
+    var enabled = false
+    var minAvailableBytes: UInt64 = 2 * 1_073_741_824
+    var sustainedSecs: UInt64 = 120
+    var cooldownSecs: UInt64 = 180
+    var quitApps: [String] = []
+}
+
+struct AutoStorageSettings: Codable, Equatable, Sendable {
+    var enabled = false
+    var intervalHours: UInt64 = 6
+    var lowFreeBytes: UInt64 = 40 * 1_073_741_824
+    var minIdleHours: UInt64 = 24
+    var targetIds: [String] = []
+}
+
+struct AutoCleanSettings: Codable, Equatable, Sendable {
+    var ram = AutoRamSettings()
+    var storage = AutoStorageSettings()
+}
+
+struct AutoQuitTarget: Decodable, Sendable {
+    let appName: String
+    let appPath: String
+    let bytes: UInt64
+    let pids: [UInt32]
+}
+
+/// Rust returns a tagged value; only the fields of the matching `kind` are set.
+struct AutoRamDecision: Decodable, Sendable {
+    let kind: String
+    let secsRemaining: UInt64?
+    let reason: String?
+    let target: AutoQuitTarget?
+}
+
+struct AutoStorageReport: Decodable, Sendable {
+    let items: UInt64
+    let bytesFreed: UInt64
+    let skipped: UInt64
+}
+
+struct AutoTickReport: Decodable, Sendable {
+    let ram: AutoRamDecision
+    let storage: AutoStorageReport?
+}
+
+struct AutoLogEntry: Decodable, Identifiable, Sendable {
+    let at: String
+    let kind: String
+    let summary: String
+    let bytes: UInt64
+    var id: String { at + kind + summary }
+}
+
+struct AutoRecorded: Decodable, Sendable {
+    let recorded: Bool
 }

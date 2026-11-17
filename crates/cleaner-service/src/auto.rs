@@ -24,6 +24,12 @@ const LOG_CAP: usize = 100;
 const MAX_ITEMS_PER_RUN: usize = 100;
 
 impl AppService {
+    /// Lower-case names of apps that can never be on the quit list.
+    #[must_use]
+    pub fn auto_protected_apps(&self) -> Vec<String> {
+        cleaner_policy::never_quit_names()
+    }
+
     pub fn auto_settings(&self) -> Result<AutoCleanSettings, ServiceError> {
         Ok(self.store.get_setting(SETTINGS_KEY)?.unwrap_or_default())
     }
