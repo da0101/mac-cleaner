@@ -195,8 +195,8 @@ struct BaselineAcknowledgement: Decodable {
 
 enum SidebarItem: String, CaseIterable, Identifiable {
     case overview = "Overview"
+    case cleanup = "Free Up Space"
     case storage = "Storage"
-    case cleanup = "Cleanup"
     case quarantine = "Recovery"
     case activity = "History"
     case agents = "Agents"

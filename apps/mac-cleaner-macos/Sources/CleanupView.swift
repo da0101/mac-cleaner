@@ -1,31 +1,61 @@
 import SwiftUI
 
+/// One checklist for everything Mac Cleaner can free, one action to do it.
 struct CleanupView: View {
     @EnvironmentObject private var model: AppModel
     @State private var selected = Set<String>()
+    @State private var confirmingClean = false
+    @State private var confirmingEmptyRecovery = false
+    @State private var showSkipped = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                header
-                cleanupSummary
-                recommendedActions
-                approvedFiles
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    header
+                    summary
+                    content
+                    ownedByOtherApps
+                }
+                .padding(.horizontal, 26)
+                .padding(.top, 22)
+                .padding(.bottom, 24)
             }
-            .padding(.horizontal, 26)
-            .padding(.top, 22)
-            .padding(.bottom, 30)
+            if !candidates.isEmpty {
+                actionBar
+            }
         }
-        .navigationTitle("Cleanup")
-        .alert(item: $model.pendingCleanupPlan) { plan in
-            Alert(
-                title: Text(plan.executionMode == "dry_run" ? "Validate this plan?" : "Move items to recovery?"),
-                message: Text("\(plan.items.count) exact item(s), \(Formatting.bytes(plan.totalBytes)). Rust will reject stale or changed paths."),
-                primaryButton: plan.executionMode == "dry_run"
-                    ? .default(Text("Validate")) { Task { await model.executePendingCleanup() } }
-                    : .destructive(Text("Move to Recovery")) { Task { await model.executePendingCleanup() } },
-                secondaryButton: .cancel { model.pendingCleanupPlan = nil }
-            )
+        .navigationTitle("Free Up Space")
+        .onChange(of: model.scan?.completedAt) { _ in
+            let valid = Set(candidates.map(\.id))
+            selected = selected.intersection(valid)
+        }
+        .confirmationDialog(
+            "Clean \(selected.count) item(s), \(Formatting.bytes(selectedBytes))?",
+            isPresented: $confirmingClean,
+            titleVisibility: .visible
+        ) {
+            Button("Move to Recovery (can undo)") {
+                clean(erase: false)
+            }
+            Button("Delete permanently and free \(Formatting.bytes(selectedBytes)) now", role: .destructive) {
+                clean(erase: true)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(confirmationMessage)
+        }
+        .confirmationDialog(
+            "Permanently erase everything in Recovery?",
+            isPresented: $confirmingEmptyRecovery,
+            titleVisibility: .visible
+        ) {
+            Button("Erase \(Formatting.bytes(recoveryBytes))", role: .destructive) {
+                Task { await model.emptyRecovery() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("\(model.quarantine.count) item(s) will be deleted and cannot be restored. Each is re-checked first.")
         }
         .alert(item: $model.pendingToolPlan) { plan in
             Alert(
@@ -37,307 +67,475 @@ struct CleanupView: View {
         }
     }
 
+    // MARK: Header and summary
+
     private var header: some View {
         HStack(alignment: .bottom, spacing: 18) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("CLEANUP CENTER")
+                Text("FREE UP SPACE")
                     .font(.system(size: 10, weight: .bold, design: .rounded))
                     .tracking(1.8)
                     .foregroundStyle(CleanerTheme.coral)
-                Text("Free space without breaking your tools")
+                Text("Pick what to remove")
                     .font(.system(size: 29, weight: .bold, design: .rounded))
                     .tracking(-0.6)
-                Text("Review generated files, tool-owned caches, and old test artifacts. Every destructive action asks first.")
+                Text("Everything here can be recreated by its tool. Sources, lockfiles and settings are never touched.")
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Find opportunities", systemImage: "magnifyingglass") {
+            Button(model.scan == nil ? "Scan" : "Rescan", systemImage: "arrow.clockwise") {
                 Task {
-                    await model.analyzeStorage()
                     await model.scanCleanup()
+                    await model.analyzeStorage()
                 }
             }
             .disabled(model.isBusy)
-            .buttonStyle(.borderedProminent)
-            .tint(CleanerTheme.coral)
+            .buttonStyle(.bordered)
             .controlSize(.large)
         }
     }
 
-    private var cleanupSummary: some View {
+    private var summary: some View {
         HStack(spacing: 10) {
-            CleanupMetric(
-                title: "Needs review",
-                value: Formatting.bytes(model.storage?.reviewableBytes ?? 0),
-                detail: "Evidence, not an automatic deletion total",
-                symbol: "eye",
-                tint: CleanerTheme.amber
-            )
-            CleanupMetric(
-                title: "Approved files",
-                value: "\(model.scan?.candidates.count ?? 0)",
-                detail: model.scan == nil ? "Run the safe file scan" : "Old enough and inside the compiled catalog",
-                symbol: "checkmark.shield",
+            SummaryTile(
+                title: "Can be freed",
+                value: model.scan == nil ? "—" : Formatting.bytes(totalBytes),
+                detail: model.scan == nil ? "Scan to find out" : "\(candidates.count) item(s) found",
                 tint: CleanerTheme.mint
             )
-            CleanupMetric(
-                title: "Held for recovery",
-                value: Formatting.bytes(quarantineBytes),
-                detail: "Still uses disk until permanently purged",
-                symbol: "archivebox",
-                tint: CleanerTheme.violet
+            SummaryTile(
+                title: "Selected",
+                value: Formatting.bytes(selectedBytes),
+                detail: "\(selected.count) item(s)",
+                tint: CleanerTheme.coral
             )
-        }
-    }
-
-    private var recommendedActions: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Recommended actions")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    Text("Owning tools do the cleanup where raw deletion would be risky.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button("Review all measured paths") { model.selection = .storage }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(CleanerTheme.azure)
-            }
-
-            HStack(spacing: 10) {
-                CleanupActionCard(
-                    symbol: "video.badge.checkmark",
-                    title: "Old simulator videos",
-                    detail: simulatorDetail,
-                    actionTitle: "Review recordings",
-                    tint: CleanerTheme.coral,
-                    enabled: simulatorHotspot != nil && !model.isBusy
-                ) {
-                    Task { await model.prepareToolCleanup(kind: "simulator") }
-                }
-                CleanupActionCard(
-                    symbol: "shippingbox",
-                    title: "Unused uv downloads",
-                    detail: uvDetail,
-                    actionTitle: "Prune with uv",
-                    tint: CleanerTheme.azure,
-                    enabled: uvHotspot != nil && !model.isBusy
-                ) {
-                    Task { await model.prepareToolCleanup(kind: "uv") }
-                }
-                CleanupActionCard(
-                    symbol: "hammer",
-                    title: "Old Xcode builds",
-                    detail: xcodeDetail,
-                    actionTitle: "Scan old builds",
-                    tint: CleanerTheme.amber,
-                    enabled: !model.isBusy
-                ) {
-                    Task { await model.scanCleanup() }
-                }
-                CleanupActionCard(
-                    symbol: "externaldrive.connected.to.line.below",
-                    title: "Docker storage",
-                    detail: dockerDetail,
-                    actionTitle: "Open Docker",
-                    tint: CleanerTheme.mint,
-                    enabled: true
-                ) {
-                    model.openApplication("Docker")
+            SummaryTile(
+                title: "In Recovery",
+                value: Formatting.bytes(recoveryBytes),
+                detail: recoveryBytes > 0 ? "Still using disk space" : "Nothing held",
+                tint: CleanerTheme.violet
+            ) {
+                if recoveryBytes > 0 {
+                    Button("Empty") { confirmingEmptyRecovery = true }
+                        .disabled(model.isBusy)
                 }
             }
         }
     }
 
-    private var approvedFiles: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Approved file cleanup")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    Text("Only direct children of reviewed catalog locations can appear here.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button("Scan again", systemImage: "arrow.clockwise") { Task { await model.scanCleanup() } }
-                    .disabled(model.isBusy)
-            }
+    // MARK: Checklist
 
-            if let scan = model.scan {
-                if scan.candidates.isEmpty {
-                    HStack(spacing: 13) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(CleanerTheme.mint.opacity(0.13))
-                            Image(systemName: "checkmark.shield")
-                                .foregroundStyle(CleanerTheme.mint)
-                        }
-                        .frame(width: 44, height: 44)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("No old files qualify for direct cleanup")
-                                .font(.headline)
-                            Text("Use the tool-owned actions above or review Storage for generated project data.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button("Open Storage") { model.selection = .storage }
-                    }
-                    .padding(15)
-                    .background(CleanerTheme.mint.opacity(0.06), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                } else {
-                    VStack(spacing: 0) {
-                        ForEach(scan.candidates) { candidate in
-                            cleanupCandidate(candidate)
-                            if candidate.id != scan.candidates.last?.id { Divider() }
-                        }
-                    }
-                    .padding(.horizontal, 14)
-                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-
-                    HStack {
-                        Text("\(selected.count) selected · \(Formatting.bytes(selectedBytes(scan)))")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Validate only") { Task { await model.prepareCleanup(candidateIDs: Array(selected), dryRun: true) } }
-                            .disabled(selected.isEmpty || model.isBusy)
-                        Button("Review cleanup", role: .destructive) { Task { await model.prepareCleanup(candidateIDs: Array(selected)) } }
-                            .disabled(selected.isEmpty || model.isBusy)
-                    }
-                }
-
-                if !scan.skipped.isEmpty {
-                    DisclosureGroup("\(scan.skipped.count) protected or skipped locations") {
-                        ForEach(scan.skipped) { item in
-                            VStack(alignment: .leading) {
-                                Text(item.path).font(.caption.monospaced()).textSelection(.enabled)
-                                Text(item.reason).font(.caption2).foregroundStyle(.secondary)
-                            }
-                            .padding(.vertical, 3)
-                        }
-                    }
-                }
-            } else {
-                HStack(spacing: 13) {
-                    Image(systemName: "checklist")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(CleanerTheme.coral)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Safe file scan has not run yet").font(.headline)
-                        Text("Scan Xcode build output, CocoaPods downloads, and Mac Cleaner’s own cache using fixed Rust rules.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button("Scan approved locations") { Task { await model.scanCleanup() } }
+    @ViewBuilder
+    private var content: some View {
+        if model.scan == nil {
+            EmptyPanel(
+                symbol: model.isBusy ? "hourglass" : "magnifyingglass",
+                title: model.isBusy ? "Scanning…" : "Not scanned yet",
+                detail: model.isBusy
+                    ? "Measuring caches and project folders. Large node_modules folders take a little while."
+                    : "Scan to see what can be freed. Scanning never removes anything."
+            ) {
+                if !model.isBusy {
+                    Button("Scan now") { Task { await model.scanCleanup() } }
                         .buttonStyle(.borderedProminent)
                         .tint(CleanerTheme.coral)
                 }
-                .padding(16)
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            }
+        } else if candidates.isEmpty {
+            EmptyPanel(
+                symbol: "checkmark.seal",
+                title: "Nothing to free right now",
+                detail: "No caches or generated project folders were found. See below for space owned by other apps."
+            ) { EmptyView() }
+        } else {
+            ForEach(groups) { group in
+                groupSection(group)
+            }
+        }
+
+        if let skipped = model.scan?.skipped, !skipped.isEmpty {
+            DisclosureGroup(isExpanded: $showSkipped) {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(skipped) { item in
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(item.path)
+                                .font(.caption.monospaced())
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .textSelection(.enabled)
+                            Text(item.reason)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(.top, 6)
+            } label: {
+                Text("\(skipped.count) item(s) not offered: \(skipSummary(skipped))")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
         }
     }
 
-    private func cleanupCandidate(_ candidate: CleanupCandidate) -> some View {
-        Toggle(isOn: selectionBinding(candidate.id)) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "doc.badge.gearshape")
-                    .foregroundStyle(CleanerTheme.amber)
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(candidate.displayName).fontWeight(.medium)
-                        Spacer()
-                        Text(Formatting.bytes(candidate.bytes)).fontWeight(.semibold).monospacedDigit()
+    private func groupSection(_ group: CandidateGroup) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(group.title)
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    Text(group.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text(Formatting.bytes(group.bytes))
+                    .font(.callout.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.secondary)
+                Button(group.allSelected(selected) ? "Deselect all" : "Select all") {
+                    if group.allSelected(selected) {
+                        selected.subtract(group.selectableIDs)
+                    } else {
+                        selected.formUnion(group.selectableIDs)
                     }
-                    Text(candidate.lexicalPath).font(.caption2.monospaced()).foregroundStyle(.secondary).lineLimit(1)
-                    Text(candidate.reason).font(.caption).foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(CleanerTheme.azure)
+                .disabled(group.selectableIDs.isEmpty)
+            }
+
+            VStack(spacing: 1) {
+                ForEach(group.items) { candidate in
+                    candidateRow(candidate)
                 }
             }
-            .padding(.vertical, 8)
-        }
-        .toggleStyle(.checkbox)
-    }
-
-    private var quarantineBytes: UInt64 {
-        model.quarantine.reduce(0) { $0 &+ $1.bytes }
-    }
-
-    private var simulatorHotspot: StorageHotspot? {
-        model.storage?.hotspots.first { $0.displayName == "Simulator test recordings" }
-    }
-
-    private var uvHotspot: StorageHotspot? {
-        model.storage?.hotspots.first { $0.displayName == "uv package cache" }
-    }
-
-    private var xcodeHotspot: StorageHotspot? {
-        model.storage?.hotspots.first { $0.displayName == "Xcode DerivedData" }
-    }
-
-    private var dockerHotspot: StorageHotspot? {
-        model.storage?.hotspots.first { $0.displayName == "Docker Desktop virtual disk" }
-    }
-
-    private var simulatorDetail: String {
-        simulatorHotspot.map { "\(Formatting.bytes($0.bytes)) of verified recordings older than 72 hours" }
-            ?? "Analyze storage to check for old test recordings"
-    }
-
-    private var uvDetail: String {
-        uvHotspot.map { "\(Formatting.bytes($0.bytes)) measured; uv removes only unused entries" }
-            ?? "Analyze storage to measure the uv cache"
-    }
-
-    private var xcodeDetail: String {
-        xcodeHotspot.map { "\(Formatting.bytes($0.bytes)) measured; only projects idle for 14 days qualify" }
-            ?? "Find old per-project DerivedData without removing Xcode"
-    }
-
-    private var dockerDetail: String {
-        dockerHotspot.map { "\(Formatting.bytes($0.bytes)) shared by images, containers, and volumes" }
-            ?? "Review images and volumes in their owning application"
-    }
-
-    private func selectionBinding(_ id: String) -> Binding<Bool> {
-        Binding(
-            get: { selected.contains(id) },
-            set: { enabled in
-                if enabled { selected.insert(id) } else { selected.remove(id) }
+            .padding(5)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
             }
-        )
+        }
     }
 
-    private func selectedBytes(_ scan: ScanReport) -> UInt64 {
-        scan.candidates.filter { selected.contains($0.id) }.reduce(0) { $0 &+ $1.bytes }
+    private func candidateRow(_ candidate: CleanupCandidate) -> some View {
+        let usage = CandidateUsage(candidate)
+        let isOn = selected.contains(candidate.id)
+        return HStack(spacing: 12) {
+            Toggle("", isOn: Binding(
+                get: { isOn },
+                set: { value in
+                    if value { selected.insert(candidate.id) } else { selected.remove(candidate.id) }
+                }
+            ))
+            .toggleStyle(.checkbox)
+            .labelsHidden()
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 7) {
+                    Text(title(for: candidate))
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    Text(kind(for: candidate))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if let badge = usage.badge {
+                        Text(badge.text)
+                            .font(.system(size: 8, weight: .bold, design: .rounded))
+                            .tracking(0.6)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .foregroundStyle(badge.tint)
+                            .background(badge.tint.opacity(0.12), in: Capsule())
+                    }
+                }
+                Text("\(usage.lastUsed) · \(candidate.recovery)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if isOn { selected.remove(candidate.id) } else { selected.insert(candidate.id) }
+            }
+
+            Text(Formatting.bytes(candidate.bytes))
+                .font(.callout.weight(.semibold).monospacedDigit())
+                .frame(width: 84, alignment: .trailing)
+
+            Button {
+                model.revealInFinder(candidate.lexicalPath)
+            } label: {
+                Image(systemName: "magnifyingglass.circle")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Show in Finder: \(candidate.lexicalPath)")
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            isOn ? CleanerTheme.coral.opacity(0.07) : Color.clear,
+            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+        )
+        .help(candidate.reason)
+    }
+
+    private var actionBar: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(selected.isEmpty ? "Select items to clean" : "\(selected.count) selected · \(Formatting.bytes(selectedBytes))")
+                    .font(.callout.weight(.semibold))
+                Text(selectedInUseCount > 0
+                     ? "\(selectedInUseCount) selected item(s) were used in the last day. Close those projects first."
+                     : "You'll choose between Recovery (undoable) and deleting permanently.")
+                    .font(.caption)
+                    .foregroundStyle(selectedInUseCount > 0 ? CleanerTheme.amber : .secondary)
+            }
+            Spacer()
+            if model.isBusy {
+                ProgressView().controlSize(.small)
+            }
+            Button("Clean Selected…") { confirmingClean = true }
+                .buttonStyle(.borderedProminent)
+                .tint(CleanerTheme.coral)
+                .controlSize(.large)
+                .disabled(selected.isEmpty || model.isBusy)
+                .keyboardShortcut(.defaultAction)
+        }
+        .padding(.horizontal, 26)
+        .padding(.vertical, 12)
+        .background(.bar)
+        .overlay(alignment: .top) { Divider() }
+    }
+
+    // MARK: Space owned by other apps
+
+    @ViewBuilder
+    private var ownedByOtherApps: some View {
+        let items = toolManaged
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 9) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Managed by other apps")
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    Text("Mac Cleaner won't delete these directly. Clean them from the app that owns them.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                VStack(spacing: 1) {
+                    ForEach(items) { hotspot in
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(hotspot.displayName)
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                Text(hotspot.recommendation)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            Text(Formatting.bytes(hotspot.bytes))
+                                .font(.callout.weight(.semibold).monospacedDigit())
+                                .frame(width: 84, alignment: .trailing)
+                            ownerAction(for: hotspot)
+                                .frame(width: 128, alignment: .trailing)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                    }
+                }
+                .padding(5)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func ownerAction(for hotspot: StorageHotspot) -> some View {
+        switch hotspot.displayName {
+        case "Docker Desktop virtual disk":
+            Button("Open Docker") { model.openApplication("Docker") }
+        case "Xcode device support", "Apple simulator devices":
+            Button("Open Xcode") { model.openApplication("Xcode") }
+        case "uv package cache":
+            Button("Prune with uv") { Task { await model.prepareToolCleanup(kind: "uv") } }
+                .disabled(model.isBusy)
+        case "Simulator test recordings":
+            Button("Review recordings") { Task { await model.prepareToolCleanup(kind: "simulator") } }
+                .disabled(model.isBusy)
+        default:
+            Button("Show in Finder") { model.revealInFinder(hotspot.path) }
+        }
+    }
+
+    // MARK: Derived data
+
+    private var candidates: [CleanupCandidate] { model.scan?.candidates ?? [] }
+
+    private var totalBytes: UInt64 { candidates.reduce(0) { $0 &+ $1.bytes } }
+
+    private var selectedBytes: UInt64 {
+        candidates.filter { selected.contains($0.id) }.reduce(0) { $0 &+ $1.bytes }
+    }
+
+    private var selectedInUseCount: Int {
+        candidates.filter { selected.contains($0.id) && CandidateUsage($0).inUse }.count
+    }
+
+    private var recoveryBytes: UInt64 { model.quarantine.reduce(0) { $0 &+ $1.bytes } }
+
+    private var toolManaged: [StorageHotspot] {
+        (model.storage?.hotspots ?? [])
+            .filter { hotspot in
+                (hotspot.disposition == "tool-managed" && hotspot.bytes >= 100_000_000)
+                    || (hotspot.displayName == "Simulator test recordings")
+                    || (hotspot.displayName == "uv package cache" && hotspot.bytes >= 50_000_000)
+            }
+            .sorted { $0.bytes > $1.bytes }
+    }
+
+    private var groups: [CandidateGroup] {
+        let definitions: [(String, String, String, (String) -> Bool)] = [
+            ("caches", "Download caches",
+             "Shared package and browser downloads. Cheapest to remove: tools fetch them again when needed.",
+             { !$0.hasPrefix("project-") && $0 != "xcode-derived-data" }),
+            ("projects", "Project dependencies and builds",
+             "Per-project folders. The next install or build recreates them, which can take minutes.",
+             { $0.hasPrefix("project-") }),
+            ("xcode", "Old Xcode builds",
+             "Projects untouched for 14 days. Xcode rebuilds and re-indexes on next open.",
+             { $0 == "xcode-derived-data" }),
+        ]
+        return definitions.compactMap { id, title, subtitle, matches in
+            let items = candidates.filter { matches($0.targetId) }.sorted { $0.bytes > $1.bytes }
+            return items.isEmpty ? nil : CandidateGroup(id: id, title: title, subtitle: subtitle, items: items)
+        }
+    }
+
+    private var confirmationMessage: String {
+        let chosen = candidates.filter { selected.contains($0.id) }.sorted { $0.bytes > $1.bytes }
+        var lines = chosen.prefix(8).map { "• \(title(for: $0)) \(kind(for: $0)): \(Formatting.bytes($0.bytes))" }
+        if chosen.count > 8 { lines.append("• and \(chosen.count - 8) more") }
+        lines.append("")
+        lines.append("Recovery keeps the files (and their disk space) so you can restore them. Deleting permanently frees the space now.")
+        return lines.joined(separator: "\n")
+    }
+
+    private func clean(erase: Bool) {
+        let ids = Array(selected)
+        Task {
+            await model.cleanSelected(candidateIDs: ids, eraseImmediately: erase)
+            selected.removeAll()
+        }
+    }
+
+    private func title(for candidate: CleanupCandidate) -> String {
+        if candidate.targetId.hasPrefix("project-") {
+            let parts = candidate.relativeEntry.split(separator: "/")
+            return parts.dropLast().joined(separator: "/")
+        }
+        if candidate.targetId == "xcode-derived-data" {
+            return candidate.relativeEntry.split(separator: "-").dropLast().joined(separator: "-")
+        }
+        return candidate.displayName.components(separatedBy: " — ").first ?? candidate.displayName
+    }
+
+    private func kind(for candidate: CleanupCandidate) -> String {
+        switch candidate.targetId {
+        case "project-node-modules": "node_modules"
+        case "project-rust-target": "Rust target"
+        case "project-dart-tool": ".dart_tool"
+        case "project-flutter-build": "Flutter build"
+        case "xcode-derived-data": "DerivedData"
+        default: ""
+        }
+    }
+
+    private func skipSummary(_ skipped: [ScanSkip]) -> String {
+        let recent = skipped.filter { $0.reason.hasPrefix("used within") }.count
+        let other = skipped.count - recent
+        var parts: [String] = []
+        if recent > 0 { parts.append("\(recent) used recently") }
+        if other > 0 { parts.append("\(other) failed a safety check") }
+        return parts.joined(separator: ", ")
     }
 }
 
-private struct CleanupMetric: View {
+// MARK: - Supporting types
+
+private struct CandidateGroup: Identifiable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let items: [CleanupCandidate]
+
+    var bytes: UInt64 { items.reduce(0) { $0 &+ $1.bytes } }
+    var selectableIDs: Set<String> { Set(items.map(\.id)) }
+    func allSelected(_ selection: Set<String>) -> Bool {
+        !items.isEmpty && selectableIDs.isSubset(of: selection)
+    }
+}
+
+private struct CandidateUsage {
+    let lastUsed: String
+    let inUse: Bool
+    let badge: (text: String, tint: Color)?
+
+    init(_ candidate: CleanupCandidate) {
+        let date = Self.parse(candidate.lastModified)
+        let age = date.map { Date().timeIntervalSince($0) } ?? .infinity
+        if let date {
+            let relative = RelativeDateTimeFormatter()
+            relative.unitsStyle = .full
+            lastUsed = "Changed \(relative.localizedString(for: date, relativeTo: Date()))"
+        } else {
+            lastUsed = "Last change unknown"
+        }
+        inUse = age < 86_400
+        if candidate.lexicalPath.hasSuffix("/mac-cleaner-full-rust-rewrite/target") {
+            badge = ("THIS APP'S BUILD", CleanerTheme.amber)
+        } else if inUse {
+            badge = ("IN USE TODAY", CleanerTheme.amber)
+        } else if age > 30 * 86_400 {
+            badge = ("UNUSED 30+ DAYS", CleanerTheme.mint)
+        } else {
+            badge = nil
+        }
+    }
+
+    private static func parse(_ value: String) -> Date? {
+        let precise = ISO8601DateFormatter()
+        precise.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = precise.date(from: value) { return date }
+        return ISO8601DateFormatter().date(from: value)
+    }
+}
+
+private struct SummaryTile<Accessory: View>: View {
     let title: String
     let value: String
     let detail: String
-    let symbol: String
     let tint: Color
+    @ViewBuilder var accessory: Accessory
+
+    init(title: String, value: String, detail: String, tint: Color, @ViewBuilder accessory: () -> Accessory = { EmptyView() }) {
+        self.title = title
+        self.value = value
+        self.detail = detail
+        self.tint = tint
+        self.accessory = accessory()
+    }
 
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 11, style: .continuous).fill(tint.opacity(0.14))
-                Image(systemName: symbol).foregroundStyle(tint)
-            }
-            .frame(width: 42, height: 42)
+        HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title.uppercased())
                     .font(.system(size: 9, weight: .bold, design: .rounded))
                     .tracking(0.9)
                     .foregroundStyle(tint)
                 Text(value)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
                     .monospacedDigit()
                 Text(detail)
                     .font(.caption2)
@@ -345,42 +543,35 @@ private struct CleanupMetric: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
+            accessory
         }
         .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 82, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 17, style: .continuous).stroke(tint.opacity(0.16), lineWidth: 1) }
+        .frame(maxWidth: .infinity, minHeight: 78, alignment: .leading)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(tint.opacity(0.16), lineWidth: 1) }
     }
 }
 
-private struct CleanupActionCard: View {
+private struct EmptyPanel<Action: View>: View {
     let symbol: String
     let title: String
     let detail: String
-    let actionTitle: String
-    let tint: Color
-    let enabled: Bool
-    let action: () -> Void
+    @ViewBuilder var action: Action
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        HStack(spacing: 14) {
             Image(systemName: symbol)
-                .font(.system(size: 19, weight: .semibold))
-                .foregroundStyle(tint)
-            Text(title).font(.headline)
-            Text(detail)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(3)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 3)
-            Button(actionTitle, action: action)
-                .buttonStyle(.bordered)
-                .disabled(!enabled)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(CleanerTheme.coral)
+                .frame(width: 40)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.headline)
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            action
         }
-        .padding(15)
-        .frame(maxWidth: .infinity, minHeight: 162, alignment: .topLeading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 17, style: .continuous).stroke(tint.opacity(0.14), lineWidth: 1) }
+        .padding(16)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }

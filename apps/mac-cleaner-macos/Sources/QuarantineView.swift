@@ -2,6 +2,7 @@ import SwiftUI
 
 struct QuarantineView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var confirmingEmpty = false
 
     var body: some View {
         ScrollView {
@@ -15,6 +16,18 @@ struct QuarantineView: View {
             .padding(.bottom, 30)
         }
         .navigationTitle("Recovery")
+        .confirmationDialog(
+            "Permanently erase everything in Recovery?",
+            isPresented: $confirmingEmpty,
+            titleVisibility: .visible
+        ) {
+            Button("Erase \(Formatting.bytes(totalBytes))", role: .destructive) {
+                Task { await model.emptyRecovery() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("\(model.quarantine.count) item(s) will be deleted and cannot be restored.")
+        }
         .alert(item: $model.pendingQuarantinePlan) { plan in
             Alert(
                 title: Text(plan.action == "restore" ? "Restore this item?" : "Permanently erase this item?"),
@@ -44,6 +57,11 @@ struct QuarantineView: View {
             Button("Refresh", systemImage: "arrow.clockwise") { Task { await model.refreshCollections() } }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+            Button("Empty Recovery", systemImage: "trash") { confirmingEmpty = true }
+                .buttonStyle(.borderedProminent)
+                .tint(CleanerTheme.coral)
+                .controlSize(.large)
+                .disabled(model.quarantine.isEmpty || model.isBusy)
         }
     }
 
@@ -75,7 +93,7 @@ struct QuarantineView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Find cleanup candidates") {
+                Button("Free Up Space") {
                     model.selection = .cleanup
                     Task { await model.scanCleanup() }
                 }

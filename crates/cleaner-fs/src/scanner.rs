@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use cleaner_domain::{
     CATALOG_VERSION, CandidateId, CleanupCandidate, ScanReport, ScanSkip, TargetId,
 };
-use cleaner_policy::{TargetSpec, catalog, catalog_root, is_protected, is_safe_relative};
+use cleaner_policy::{TargetLayout, TargetSpec, candidate_path, catalog, catalog_root};
 use sha2::{Digest, Sha256};
 
 use crate::FsError;
@@ -91,20 +91,20 @@ impl Scanner {
                 }
             };
 
-            let entries = fs::read_dir(&root).map_err(|source| FsError::Io {
-                path: root.clone(),
-                source,
-            })?;
-            for entry in entries {
-                let entry = entry.map_err(|source| FsError::Io {
-                    path: root.clone(),
-                    source,
-                })?;
-                match self.inspect_entry(target, &root, &resolved_root, home_device, entry.path()) {
+            for path in discover_entries(target, &root, home_device)? {
+                match self.inspect_entry(target, &root, &resolved_root, home_device, path) {
                     Ok(Some(candidate)) if is_old_enough(&candidate, target, now) => {
                         candidates.push(candidate);
                     }
-                    Ok(_) => {}
+                    Ok(Some(candidate)) => {
+                        let days = target.minimum_age.as_secs() / 86_400;
+                        skipped.push(skip(
+                            target,
+                            &candidate.lexical_path,
+                            &format!("used within the last {days} days"),
+                        ));
+                    }
+                    Ok(None) => {}
                     Err(FsError::UnsafeCandidate { path, reason }) => {
                         skipped.push(skip(target, &path, &reason));
                     }
@@ -134,11 +134,14 @@ impl Scanner {
             .strip_prefix(root)
             .map_err(|_| unsafe_candidate(&path, "entry is outside its catalog root"))?
             .to_path_buf();
-        if !is_safe_relative(&relative) || relative.components().count() != 1 {
-            return Err(unsafe_candidate(&path, "entry is not one direct child"));
-        }
-        if is_protected(&self.home, &path) {
-            return Err(unsafe_candidate(&path, "entry intersects a protected path"));
+        match candidate_path(&self.home, target, &relative) {
+            Ok(expected) if expected == path => {}
+            _ => {
+                return Err(unsafe_candidate(
+                    &path,
+                    "entry does not match its catalog target",
+                ));
+            }
         }
 
         let metadata = metadata_no_follow(&path)?;
@@ -154,7 +157,12 @@ impl Scanner {
             ));
         }
 
-        let summary = summarize_tree(&path, device, self.max_entries)?;
+        let summary = summarize_tree(
+            &path,
+            device,
+            self.max_entries,
+            target.allows_internal_links(),
+        )?;
         Ok(Some(CleanupCandidate {
             id: stable_candidate_id(target.id, relative.as_os_str()),
             target_id: TargetId(target.id.to_owned()),
@@ -177,6 +185,61 @@ impl Scanner {
     }
 }
 
+/// Lists the paths a target may contribute, without judging them yet.
+fn discover_entries(
+    target: &TargetSpec,
+    root: &Path,
+    device: u64,
+) -> Result<Vec<PathBuf>, FsError> {
+    let read = |dir: &Path| -> Result<Vec<PathBuf>, FsError> {
+        Ok(fs::read_dir(dir)
+            .map_err(|source| FsError::Io {
+                path: dir.to_path_buf(),
+                source,
+            })?
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .collect())
+    };
+    let is_real_dir = |path: &Path| {
+        metadata_no_follow(path).is_ok_and(|metadata| {
+            metadata.is_dir() && !metadata.file_type().is_symlink() && metadata.dev() == device
+        })
+    };
+    Ok(match target.layout {
+        TargetLayout::Children => read(root)?,
+        TargetLayout::Named(entry) => {
+            let path = root.join(entry);
+            if fs::symlink_metadata(&path).is_ok() {
+                vec![path]
+            } else {
+                Vec::new()
+            }
+        }
+        TargetLayout::Project { marker, entry } => {
+            let mut found = Vec::new();
+            for project in read(root)?.into_iter().filter(|path| is_real_dir(path)) {
+                let mut roots = vec![project.clone()];
+                if let Ok(children) = read(&project) {
+                    roots.extend(children.into_iter().filter(|path| is_real_dir(path)));
+                }
+                for project_root in roots {
+                    if !fs::symlink_metadata(project_root.join(marker))
+                        .is_ok_and(|metadata| metadata.is_file())
+                    {
+                        continue;
+                    }
+                    let path = project_root.join(entry);
+                    if fs::symlink_metadata(&path).is_ok() {
+                        found.push(path);
+                    }
+                }
+            }
+            found
+        }
+    })
+}
+
 fn stable_candidate_id(target_id: &str, relative: &OsStr) -> CandidateId {
     let mut digest = Sha256::new();
     digest.update(target_id.as_bytes());
@@ -186,6 +249,9 @@ fn stable_candidate_id(target_id: &str, relative: &OsStr) -> CandidateId {
 }
 
 fn is_old_enough(candidate: &CleanupCandidate, target: &TargetSpec, now: DateTime<Utc>) -> bool {
+    if target.minimum_age.is_zero() {
+        return true;
+    }
     let Ok(minimum_age) = chrono::Duration::from_std(target.minimum_age) else {
         return false;
     };

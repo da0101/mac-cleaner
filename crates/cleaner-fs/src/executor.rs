@@ -6,7 +6,7 @@ use chrono::Utc;
 use cleaner_domain::{
     ApprovedPlan, CleanupCandidate, ExecutionItemReceipt, ExecutionMode, ExecutionReceipt,
 };
-use cleaner_policy::{catalog, catalog_root, is_protected};
+use cleaner_policy::{candidate_path, catalog, catalog_root};
 use uuid::Uuid;
 
 use crate::metadata::{
@@ -109,8 +109,8 @@ impl PlanExecutor {
             .find(|target| target.id == candidate.target_id.0)
             .ok_or_else(|| FsError::UnknownTarget(candidate.target_id.0.clone()))?;
         let root = catalog_root(&self.home, target)?;
-        let expected = root.join(&candidate.relative_entry);
-        if expected != candidate.lexical_path || is_protected(&self.home, &expected) {
+        let expected = candidate_path(&self.home, target, &candidate.relative_entry)?;
+        if expected != candidate.lexical_path {
             return Err(unsafe_candidate(
                 &expected,
                 "candidate path no longer matches policy",
@@ -131,7 +131,12 @@ impl PlanExecutor {
         if resolved != candidate.resolved_path {
             return Err(FsError::CandidateChanged(expected));
         }
-        let summary = summarize_tree(&expected, root_metadata.dev(), DEFAULT_MAX_ENTRIES)?;
+        let summary = summarize_tree(
+            &expected,
+            root_metadata.dev(),
+            DEFAULT_MAX_ENTRIES,
+            target.allows_internal_links(),
+        )?;
         if summary.bytes != candidate.bytes || summary.files != candidate.files {
             return Err(FsError::CandidateChanged(expected));
         }

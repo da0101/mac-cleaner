@@ -5,6 +5,26 @@ use cleaner_domain::{RecoveryMode, SafetyTier};
 
 use crate::{PolicyError, is_protected, is_safe_relative, validate_home};
 
+/// Where a target's candidates live relative to its discovery root.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TargetLayout {
+    /// Every direct child of the root is a separate candidate.
+    Children,
+    /// Exactly one named directory inside the root is the candidate.
+    Named(&'static str),
+    /// A fixed generated directory directly inside a project root.
+    ///
+    /// Project roots are the first or second directory level under the
+    /// discovery root and must contain `marker` as a regular file. This is the
+    /// only way a candidate can sit below a protected prefix such as
+    /// `Documents`: the repository itself, its sources, and its lockfiles
+    /// always stay protected.
+    Project {
+        marker: &'static str,
+        entry: &'static str,
+    },
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TargetSpec {
     pub id: &'static str,
@@ -17,6 +37,20 @@ pub struct TargetSpec {
     pub recovery_mode: RecoveryMode,
     pub safety_tier: SafetyTier,
     pub minimum_age: Duration,
+    pub layout: TargetLayout,
+}
+
+impl TargetSpec {
+    /// Generated trees may contain internal symlinks and hard links (for
+    /// example `node_modules/.bin` and Cargo's `deps` links). Moving or
+    /// erasing the whole tree never follows them, so they are acceptable
+    /// inside these targets only.
+    #[must_use]
+    pub fn allows_internal_links(&self) -> bool {
+        // Xcode DerivedData children are per-project build trees whose Swift
+        // package checkouts routinely contain header symlinks.
+        !matches!(self.layout, TargetLayout::Children) || self.id == "xcode-derived-data"
+    }
 }
 
 const REVIEW_TARGETS: &[TargetSpec] = &[
@@ -31,6 +65,7 @@ const REVIEW_TARGETS: &[TargetSpec] = &[
         recovery_mode: RecoveryMode::Rebuild,
         safety_tier: SafetyTier::ReviewRequired,
         minimum_age: Duration::from_hours(24),
+        layout: TargetLayout::Children,
     },
     TargetSpec {
         id: "xcode-derived-data",
@@ -43,6 +78,7 @@ const REVIEW_TARGETS: &[TargetSpec] = &[
         recovery_mode: RecoveryMode::Rebuild,
         safety_tier: SafetyTier::ReviewRequired,
         minimum_age: Duration::from_hours(336),
+        layout: TargetLayout::Children,
     },
     TargetSpec {
         id: "cocoapods-download-cache",
@@ -55,8 +91,127 @@ const REVIEW_TARGETS: &[TargetSpec] = &[
         recovery_mode: RecoveryMode::Redownload,
         safety_tier: SafetyTier::ReviewRequired,
         minimum_age: Duration::from_hours(720),
+        layout: TargetLayout::Children,
     },
+    named(
+        "yarn-berry-cache",
+        "Yarn package cache",
+        ".yarn/berry",
+        "cache",
+        "Yarn",
+        "Downloaded package archives shared by Yarn projects",
+    ),
+    named(
+        "npm-content-cache",
+        "npm package cache",
+        ".npm",
+        "_cacache",
+        "npm",
+        "npm's content-addressed download cache",
+    ),
+    named(
+        "npm-npx-cache",
+        "npx tool cache",
+        ".npm",
+        "_npx",
+        "npm",
+        "Packages that npx downloaded to run one-off commands",
+    ),
+    named(
+        "puppeteer-browser-cache",
+        "Puppeteer browsers",
+        ".cache",
+        "puppeteer",
+        "Puppeteer",
+        "Browser builds that Puppeteer downloaded for automated tests",
+    ),
+    project(
+        "project-node-modules",
+        "Node dependencies",
+        "package.json",
+        "node_modules",
+        "npm, Yarn, or pnpm",
+        RecoveryMode::Redownload,
+        "Installed packages; the project's lockfile is kept, so `install` recreates them",
+    ),
+    project(
+        "project-rust-target",
+        "Rust build output",
+        "Cargo.toml",
+        "target",
+        "Cargo",
+        RecoveryMode::Rebuild,
+        "Compiled Rust artifacts; the next `cargo build` recreates them",
+    ),
+    project(
+        "project-dart-tool",
+        "Flutter tool state",
+        "pubspec.yaml",
+        ".dart_tool",
+        "Flutter",
+        RecoveryMode::Rebuild,
+        "Generated Dart tool state; `flutter pub get` recreates it",
+    ),
+    project(
+        "project-flutter-build",
+        "Flutter build output",
+        "pubspec.yaml",
+        "build",
+        "Flutter",
+        RecoveryMode::Rebuild,
+        "Compiled Flutter output; the next build recreates it",
+    ),
 ];
+
+/// Home-relative directory that contains the projects Mac Cleaner inspects.
+pub const PROJECTS_ROOT: &str = "Documents/GitHub";
+
+const fn named(
+    id: &'static str,
+    display_name: &'static str,
+    home_relative_root: &'static str,
+    entry: &'static str,
+    owner: &'static str,
+    reason: &'static str,
+) -> TargetSpec {
+    TargetSpec {
+        id,
+        display_name,
+        home_relative_root,
+        category: "Dependency download cache",
+        reason,
+        owner,
+        recovery: "The tool downloads what it needs again on next use",
+        recovery_mode: RecoveryMode::Redownload,
+        safety_tier: SafetyTier::ReviewRequired,
+        minimum_age: Duration::ZERO,
+        layout: TargetLayout::Named(entry),
+    }
+}
+
+const fn project(
+    id: &'static str,
+    display_name: &'static str,
+    marker: &'static str,
+    entry: &'static str,
+    owner: &'static str,
+    recovery_mode: RecoveryMode,
+    reason: &'static str,
+) -> TargetSpec {
+    TargetSpec {
+        id,
+        display_name,
+        home_relative_root: PROJECTS_ROOT,
+        category: "Project generated data",
+        reason,
+        owner,
+        recovery: "Running the project's install or build command recreates it",
+        recovery_mode,
+        safety_tier: SafetyTier::ReviewRequired,
+        minimum_age: Duration::ZERO,
+        layout: TargetLayout::Project { marker, entry },
+    }
+}
 
 #[must_use]
 pub fn catalog() -> &'static [TargetSpec] {
@@ -71,6 +226,11 @@ pub fn safe_auto_catalog() -> Vec<&'static TargetSpec> {
         .collect()
 }
 
+/// The directory a target is discovered from.
+///
+/// Project targets are discovered from the protected projects directory; the
+/// root itself is never a candidate, and every candidate below it must pass
+/// [`candidate_path`].
 pub fn catalog_root(home: &Path, target: &TargetSpec) -> Result<PathBuf, PolicyError> {
     validate_home(home)?;
     let relative = Path::new(target.home_relative_root);
@@ -78,8 +238,78 @@ pub fn catalog_root(home: &Path, target: &TargetSpec) -> Result<PathBuf, PolicyE
         return Err(PolicyError::InvalidCatalogRoot(target.id.to_owned()));
     }
     let root = home.join(relative);
-    if is_protected(home, &root) {
+    let is_project = matches!(target.layout, TargetLayout::Project { .. });
+    if is_project {
+        if target.home_relative_root != PROJECTS_ROOT {
+            return Err(PolicyError::InvalidCatalogRoot(target.id.to_owned()));
+        }
+    } else if is_protected(home, &root) {
         return Err(PolicyError::ProtectedPath(root));
     }
     Ok(root)
+}
+
+/// Rebuild and check the exact path for a candidate's relative entry.
+///
+/// This is the single authority used by discovery, plan execution, and
+/// restore. It is purely lexical; callers still verify filesystem identity.
+pub fn candidate_path(
+    home: &Path,
+    target: &TargetSpec,
+    relative_entry: &Path,
+) -> Result<PathBuf, PolicyError> {
+    let root = catalog_root(home, target)?;
+    if !is_safe_relative(relative_entry) {
+        return Err(PolicyError::InvalidCandidatePath(
+            relative_entry.to_path_buf(),
+        ));
+    }
+    let components: Vec<_> = relative_entry.components().collect();
+    let path = root.join(relative_entry);
+    match target.layout {
+        TargetLayout::Children => {
+            if components.len() != 1 || is_protected(home, &path) {
+                return Err(PolicyError::InvalidCandidatePath(
+                    relative_entry.to_path_buf(),
+                ));
+            }
+        }
+        TargetLayout::Named(entry) => {
+            if relative_entry != Path::new(entry) || is_protected(home, &path) {
+                return Err(PolicyError::InvalidCandidatePath(
+                    relative_entry.to_path_buf(),
+                ));
+            }
+        }
+        TargetLayout::Project { marker, entry } => {
+            let depth_ok = components.len() == 2 || components.len() == 3;
+            let name_ok = relative_entry.file_name() == Some(entry.as_ref());
+            // Project names must not themselves be generated or hidden
+            // directories, which keeps `node_modules/x/node_modules` and
+            // dot-directories out.
+            let parents_ok =
+                components[..components.len().saturating_sub(1)]
+                    .iter()
+                    .all(|component| {
+                        let name = component.as_os_str().to_string_lossy();
+                        !name.starts_with('.') && !GENERATED_NAMES.contains(&name.as_ref())
+                    });
+            let project_root = path.parent().map(Path::to_path_buf);
+            let marker_ok = project_root
+                .as_ref()
+                .is_some_and(|root| marker_is_regular_file(&root.join(marker)));
+            if !(depth_ok && name_ok && parents_ok && marker_ok) {
+                return Err(PolicyError::InvalidCandidatePath(
+                    relative_entry.to_path_buf(),
+                ));
+            }
+        }
+    }
+    Ok(path)
+}
+
+const GENERATED_NAMES: &[&str] = &["node_modules", "target", "build", "Pods", "vendor"];
+
+fn marker_is_regular_file(path: &Path) -> bool {
+    std::fs::symlink_metadata(path).is_ok_and(|metadata| metadata.is_file())
 }

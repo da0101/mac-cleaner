@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Version of the compiled cleanup catalog used to discover a candidate.
-pub const CATALOG_VERSION: u32 = 1;
+pub const CATALOG_VERSION: u32 = 2;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]

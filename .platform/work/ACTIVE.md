@@ -2,6 +2,7 @@
 
 | Stream | Type | Status | Agent | Last updated |
 |---|---|---|---|---|
+| usable-cleanup | feature | in-progress | claude | 2026-11-16 |
 | agent-storage-mcp | feature | in-progress | codex | 2026-11-16 |
 | native-swiftui-shell | refactor | in-progress | codex | 2026-11-16 |
 | storage-forensics-history | feature | closure-review | codex | 2026-11-16 |

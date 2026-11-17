@@ -124,6 +124,54 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Moves the confirmed candidates to Recovery, then optionally erases
+    /// exactly those Recovery entries. The caller shows the native
+    /// confirmation first; Rust still rescans, rebuilds the plan, and
+    /// revalidates every item before anything moves.
+    func cleanSelected(candidateIDs: [String], eraseImmediately: Bool) async {
+        guard !candidateIDs.isEmpty else { return }
+        let freeBefore = snapshot?.disk.availableBytes
+        await perform("Re-checking \(candidateIDs.count) item(s) before moving them…") { engine in
+            let plan: CleanupPlan = try await engine.run(.prepareClean(candidateIDs, dryRun: false))
+            notice = "Moving \(Formatting.bytes(plan.totalBytes)) to Recovery…"
+            let receipt: ExecutionReceipt = try await engine.run(.executeClean(plan.id))
+            var entries: [QuarantineEntry] = try await engine.run(.quarantineList(100))
+            entries = entries.filter { $0.planId == receipt.planId }
+            if eraseImmediately {
+                try await erase(entries, using: engine)
+            }
+            await refreshCollections(using: engine)
+            scan = try await engine.run(.scan)
+            let next: SystemSnapshot = try await engine.run(.status)
+            snapshot = next
+            let freed = freeBefore.map { next.disk.availableBytes > $0 ? next.disk.availableBytes - $0 : 0 }
+            notice = eraseImmediately
+                ? "Erased \(receipt.items.count) item(s). Free space grew by \(Formatting.bytes(freed ?? plan.totalBytes))."
+                : "Moved \(receipt.items.count) item(s), \(Formatting.bytes(plan.totalBytes)), to Recovery. Empty Recovery to free the space."
+        }
+    }
+
+    /// Permanently erases every active Recovery entry after native confirmation.
+    func emptyRecovery() async {
+        let entries = quarantine
+        guard !entries.isEmpty else { return }
+        await perform("Erasing \(entries.count) Recovery item(s)…") { engine in
+            try await erase(entries, using: engine)
+            await refreshCollections(using: engine)
+            let next: SystemSnapshot = try await engine.run(.status)
+            snapshot = next
+            notice = "Recovery emptied. \(Formatting.bytes(entries.reduce(0) { $0 &+ $1.bytes })) released."
+        }
+    }
+
+    private func erase(_ entries: [QuarantineEntry], using engine: EngineClient) async throws {
+        for (index, entry) in entries.enumerated() {
+            notice = "Erasing \(index + 1) of \(entries.count): \(URL(fileURLWithPath: entry.originalPath).lastPathComponent)…"
+            let plan: QuarantineActionPlan = try await engine.run(.prepareQuarantine(entry.id, action: "purge"))
+            let _: QuarantineEntry = try await engine.run(.executeQuarantine(plan.id))
+        }
+    }
+
     func prepareQuarantine(_ entry: QuarantineEntry, action: String) async {
         await perform("Preparing \(action)…") { engine in
             let plan: QuarantineActionPlan = try await engine.run(.prepareQuarantine(entry.id, action: action))
@@ -174,6 +222,10 @@ final class AppModel: ObservableObject {
         }
         let configuration = NSWorkspace.OpenConfiguration()
         NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: configuration)
+    }
+
+    func revealInFinder(_ path: String) {
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     }
 
     private func refreshCollections(using engine: EngineClient) async {

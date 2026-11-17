@@ -95,7 +95,7 @@ struct ActivityView: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button("Open Cleanup") { model.selection = .cleanup }
+                    Button("Free Up Space") { model.selection = .cleanup }
                 }
                 .padding(16)
                 .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 17, style: .continuous))

@@ -6,7 +6,7 @@ use chrono::Utc;
 use cleaner_domain::{
     ApprovedQuarantineAction, FileKind, QuarantineAction, QuarantineEntry, QuarantineState,
 };
-use cleaner_policy::{catalog, catalog_root, is_protected};
+use cleaner_policy::{candidate_path, catalog, catalog_root};
 
 use crate::metadata::{
     DEFAULT_MAX_ENTRIES, identity_from_metadata, metadata_no_follow, summarize_tree,
@@ -82,10 +82,15 @@ impl QuarantineExecutor {
         if identity_from_metadata(&metadata)? != entry.identity {
             return Err(FsError::QuarantineChanged(entry.quarantine_path.clone()));
         }
+        let allow_internal_links = catalog()
+            .iter()
+            .find(|target| target.id == entry.target_id.0)
+            .is_some_and(cleaner_policy::TargetSpec::allows_internal_links);
         let summary = summarize_tree(
             &entry.quarantine_path,
             root_metadata.dev(),
             DEFAULT_MAX_ENTRIES,
+            allow_internal_links,
         )?;
         if summary.bytes != entry.bytes || summary.files != entry.files {
             return Err(FsError::QuarantineChanged(entry.quarantine_path.clone()));
@@ -97,8 +102,14 @@ impl QuarantineExecutor {
                 .find(|target| target.id == entry.target_id.0)
                 .ok_or_else(|| FsError::UnknownTarget(entry.target_id.0.clone()))?;
             let catalog_root = catalog_root(&self.home, target)?;
-            let expected = catalog_root.join(&entry.relative_entry);
-            if expected != entry.original_path || is_protected(&self.home, &expected) {
+            let expected =
+                candidate_path(&self.home, target, &entry.relative_entry).map_err(|_| {
+                    unsafe_candidate(
+                        &entry.original_path,
+                        "restore destination no longer matches the compiled catalog",
+                    )
+                })?;
+            if expected != entry.original_path {
                 return Err(unsafe_candidate(
                     &entry.original_path,
                     "restore destination no longer matches the compiled catalog",

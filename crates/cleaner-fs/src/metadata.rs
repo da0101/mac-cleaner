@@ -9,7 +9,7 @@ use cleaner_policy::{protected_sentinels, validate_home};
 
 use crate::FsError;
 
-pub(crate) const DEFAULT_MAX_ENTRIES: u64 = 250_000;
+pub(crate) const DEFAULT_MAX_ENTRIES: u64 = 1_500_000;
 
 #[derive(Debug)]
 pub(crate) struct TreeSummary {
@@ -22,24 +22,51 @@ pub(crate) fn summarize_tree(
     root: &Path,
     device: u64,
     max_entries: u64,
+    allow_internal_links: bool,
 ) -> Result<TreeSummary, FsError> {
-    let mut stack = vec![root.to_path_buf()];
+    let mut stack = vec![(root.to_path_buf(), 0_u32)];
     let mut bytes = 0_u64;
     let mut files = 0_u64;
     let mut newest_modified = UNIX_EPOCH;
 
-    while let Some(path) = stack.pop() {
+    while let Some((path, depth)) = stack.pop() {
         if files >= max_entries {
             return Err(unsafe_candidate(root, "entry count exceeds the scan limit"));
         }
-        if has_protected_name(&path) {
+        // A repository or project marker at the top of the tree means the
+        // candidate is (or directly holds) real project state. Deeper copies
+        // are build products, such as a Podfile that Flutter copies into
+        // Xcode DerivedData, and must not block cleanup forever.
+        if depth <= 1 && has_protected_name(&path) {
             return Err(unsafe_candidate(
                 root,
                 "tree contains a protected project sentinel",
             ));
         }
         let metadata = metadata_no_follow(&path)?;
-        validate_metadata(&path, &metadata, device)?;
+        if depth > 0 && allow_internal_links {
+            if metadata.dev() != device {
+                return Err(unsafe_candidate(
+                    &path,
+                    "path crosses a filesystem boundary",
+                ));
+            }
+            if metadata.file_type().is_symlink() {
+                // Counted but never followed; moving or erasing the tree
+                // removes the link itself, not what it points at.
+                files = files.saturating_add(1);
+                bytes = bytes.saturating_add(metadata.blocks().saturating_mul(512));
+                continue;
+            }
+            if !metadata.is_file() && !metadata.is_dir() {
+                return Err(unsafe_candidate(
+                    &path,
+                    "special filesystem objects are protected",
+                ));
+            }
+        } else {
+            validate_metadata(&path, &metadata, device)?;
+        }
         files = files.saturating_add(1);
         bytes = bytes.saturating_add(metadata.blocks().saturating_mul(512));
         let modified = metadata.modified().map_err(|source| FsError::Io {
@@ -54,14 +81,15 @@ pub(crate) fn summarize_tree(
                 source,
             })?;
             for entry in entries {
-                stack.push(
+                stack.push((
                     entry
                         .map_err(|source| FsError::Io {
                             path: path.clone(),
                             source,
                         })?
                         .path(),
-                );
+                    depth.saturating_add(1),
+                ));
             }
         }
     }

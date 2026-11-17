@@ -29,9 +29,34 @@ final class MacCleanerAppDelegate: NSObject, NSApplicationDelegate {
         bringMainWindowForward(after: 0.2, attemptsRemaining: 12)
     }
 
+    /// Set by the SwiftUI scene so AppKit can recreate a closed main window.
+    var openMainWindow: (() -> Void)?
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        bringMainWindowForward(attemptsRemaining: 4)
+        showMainWindow()
         return true
+    }
+
+    /// Brings the main window forward, recreating it if the user closed it.
+    /// Closing a SwiftUI WindowGroup window destroys it, so looking for an
+    /// existing window alone cannot reopen the app from the Dock or `open -a`.
+    func showMainWindow() {
+        if mainWindow != nil {
+            bringMainWindowForward(attemptsRemaining: 4)
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+            openMainWindow?()
+            bringMainWindowForward(after: 0.15, attemptsRemaining: 8)
+        }
+    }
+
+    private var mainWindow: NSWindow? {
+        NSApp.windows.first { window in
+            window.isVisible
+                && window.canBecomeKey
+                && !(window is NSPanel)
+                && !String(describing: type(of: window)).contains("Popover")
+        }
     }
 
     func configureMenuBar(model: AppModel) {
@@ -135,7 +160,7 @@ final class MacCleanerAppDelegate: NSObject, NSApplicationDelegate {
     private func bringMainWindowForward(after delay: TimeInterval = 0, attemptsRemaining: Int = 1) {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             NSRunningApplication.current.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
-            if let window = NSApp.windows.first(where: { $0.canBecomeKey && !($0 is NSPanel) }) {
+            if let window = self.mainWindow {
                 window.hasShadow = false
                 window.collectionBehavior.insert(.moveToActiveSpace)
                 window.makeKeyAndOrderFront(nil)
@@ -160,6 +185,7 @@ struct MacCleanerApp: App {
                 .preferredColorScheme(appearance.colorScheme)
                 .frame(minWidth: 900, minHeight: 640)
                 .onAppear { appDelegate.configureMenuBar(model: model) }
+                .background(WindowOpenerBridge(delegate: appDelegate))
         }
         .defaultSize(width: 1120, height: 760)
         .windowResizability(.contentMinSize)
@@ -178,4 +204,18 @@ struct MacCleanerApp: App {
         }
     }
 
+}
+
+/// Hands SwiftUI's `openWindow` action to the AppKit delegate.
+private struct WindowOpenerBridge: View {
+    let delegate: MacCleanerAppDelegate
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .onAppear {
+                delegate.openMainWindow = { openWindow(id: "main") }
+            }
+    }
 }

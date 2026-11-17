@@ -58,7 +58,14 @@ impl AppService {
         }
         create_private_directory(&data_dir)?;
         let store = Arc::new(Store::open(&data_dir.join("mac-cleaner.sqlite3"))?);
-        store.fail_incomplete_on_startup()?;
+        // Every engine invocation opens the store, including the app's
+        // periodic status refresh. Only recover interrupted work when no
+        // other process holds the mutation lock; otherwise a long-running
+        // cleanup would be marked failed while it is still moving files.
+        if let Ok(lock) = try_mutation_lock(&data_dir) {
+            store.fail_incomplete_on_startup()?;
+            drop(lock);
+        }
 
         Ok(Self {
             scanner: Scanner::new(home.clone()),
@@ -277,19 +284,23 @@ impl AppService {
     }
 
     fn acquire_process_lock(&self) -> Result<File, ServiceError> {
-        let path = self.data_dir.join("mutation.lock");
-        let file = OpenOptions::new()
-            .create(true)
-            .read(true)
-            .write(true)
-            .truncate(false)
-            .open(&path)
-            .map_err(|source| ServiceError::LockFile {
-                path: path.clone(),
-                source,
-            })?;
-        file.try_lock_exclusive()
-            .map_err(|_| ServiceError::MutationInProgress)?;
-        Ok(file)
+        try_mutation_lock(&self.data_dir)
     }
+}
+
+fn try_mutation_lock(data_dir: &Path) -> Result<File, ServiceError> {
+    let path = data_dir.join("mutation.lock");
+    let file = OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .truncate(false)
+        .open(&path)
+        .map_err(|source| ServiceError::LockFile {
+            path: path.clone(),
+            source,
+        })?;
+    file.try_lock_exclusive()
+        .map_err(|_| ServiceError::MutationInProgress)?;
+    Ok(file)
 }
