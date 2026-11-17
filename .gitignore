@@ -1,13 +1,7 @@
 # Secrets and local config
 .env
 .env.*
-!.env.example
 
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
 
 # Rust and build-time web tooling
 target/
