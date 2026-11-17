@@ -65,3 +65,5 @@
 - 2026-11-16 — commit `d625ab5`: feat: ship native Swift Mac Cleaner — auto-logged
 
 - 2026-11-16 — commit `dd0dfa2`: feat: make cleanup actionable and hand off QA — auto-logged
+
+- 2026-11-16 — commit `5f0a857`: chore: record cleanup handoff checkpoint — auto-logged
