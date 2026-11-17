@@ -75,3 +75,59 @@ fn only_project_targets_may_be_discovered_below_documents() {
         }
     }
 }
+
+#[test]
+fn nested_project_entries_need_their_marker_and_exact_shape()
+-> Result<(), Box<dyn std::error::Error>> {
+    use crate::{candidate_path, marker_present};
+    let home = tempfile::TempDir::new()?;
+    let project = home.path().join("Documents/GitHub/app");
+    std::fs::create_dir_all(project.join("ios/Runner.xcodeproj"))?;
+    std::fs::create_dir_all(project.join("ios/build"))?;
+    let target = catalog()
+        .iter()
+        .find(|target| target.id == "project-ios-build")
+        .ok_or("ios build target missing")?;
+    assert_eq!(target.entry_depth(), 2);
+    assert!(target.require_git_ignored);
+    assert!(marker_present(&project, "ios/*.xcodeproj"));
+    assert!(!marker_present(&project, "ios/*.xcworkspace"));
+
+    assert!(candidate_path(home.path(), target, std::path::Path::new("app/ios/build")).is_ok());
+    // Wrong tail, wrong depth, missing marker, or traversal all fail closed.
+    assert!(candidate_path(home.path(), target, std::path::Path::new("app/ios/src")).is_err());
+    assert!(candidate_path(home.path(), target, std::path::Path::new("ios/build")).is_err());
+    assert!(candidate_path(home.path(), target, std::path::Path::new("a/b/c/ios/build")).is_err());
+    assert!(candidate_path(home.path(), target, std::path::Path::new("other/ios/build")).is_err());
+    assert!(
+        candidate_path(
+            home.path(),
+            target,
+            std::path::Path::new("app/../ios/build")
+        )
+        .is_err()
+    );
+    Ok(())
+}
+
+#[test]
+fn xcode_symlinked_project_markers_do_not_count() -> Result<(), Box<dyn std::error::Error>> {
+    use crate::marker_present;
+    let dir = tempfile::TempDir::new()?;
+    std::fs::create_dir_all(dir.path().join("ios"))?;
+    std::os::unix::fs::symlink("/tmp", dir.path().join("ios/Fake.xcodeproj"))?;
+    assert!(!marker_present(dir.path(), "ios/*.xcodeproj"));
+    Ok(())
+}
+
+#[test]
+fn newly_added_home_targets_keep_expected_ages() -> Result<(), &'static str> {
+    for (id, hours) in [("xcode-device-support", 72), ("chrome-on-device-model", 24)] {
+        let target = catalog()
+            .iter()
+            .find(|target| target.id == id)
+            .ok_or("target missing")?;
+        assert_eq!(target.minimum_age.as_secs(), hours * 3_600, "{id}");
+    }
+    Ok(())
+}

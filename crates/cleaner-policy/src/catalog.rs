@@ -38,9 +38,23 @@ pub struct TargetSpec {
     pub safety_tier: SafetyTier,
     pub minimum_age: Duration,
     pub layout: TargetLayout,
+    /// When set, a candidate is offered only if the owning project's Git
+    /// ignore rules cover it and Git tracks nothing inside it. This keeps
+    /// committed build or cache folders (for example Yarn zero-install) safe.
+    pub require_git_ignored: bool,
 }
 
 impl TargetSpec {
+    /// Number of path components in a project target's entry
+    /// (`ios/DerivedData` is 2). Other layouts always return 1.
+    #[must_use]
+    pub fn entry_depth(&self) -> usize {
+        match self.layout {
+            TargetLayout::Project { entry, .. } => Path::new(entry).components().count(),
+            _ => 1,
+        }
+    }
+
     /// Generated trees may contain internal symlinks and hard links (for
     /// example `node_modules/.bin` and Cargo's `deps` links). Moving or
     /// erasing the whole tree never follows them, so they are acceptable
@@ -66,6 +80,7 @@ const REVIEW_TARGETS: &[TargetSpec] = &[
         safety_tier: SafetyTier::ReviewRequired,
         minimum_age: Duration::from_hours(24),
         layout: TargetLayout::Children,
+        require_git_ignored: false,
     },
     TargetSpec {
         id: "xcode-derived-data",
@@ -79,6 +94,7 @@ const REVIEW_TARGETS: &[TargetSpec] = &[
         safety_tier: SafetyTier::ReviewRequired,
         minimum_age: Duration::from_hours(336),
         layout: TargetLayout::Children,
+        require_git_ignored: false,
     },
     TargetSpec {
         id: "cocoapods-download-cache",
@@ -92,6 +108,7 @@ const REVIEW_TARGETS: &[TargetSpec] = &[
         safety_tier: SafetyTier::ReviewRequired,
         minimum_age: Duration::from_hours(720),
         layout: TargetLayout::Children,
+        require_git_ignored: false,
     },
     named(
         "yarn-berry-cache",
@@ -161,6 +178,61 @@ const REVIEW_TARGETS: &[TargetSpec] = &[
         RecoveryMode::Rebuild,
         "Compiled Flutter output; the next build recreates it",
     ),
+    nested_project(
+        "project-xcode-derived-data",
+        "Xcode build output",
+        "ios/*.xcodeproj",
+        "ios/DerivedData",
+        "Xcode",
+        72,
+        "Project-local Xcode build products and indexes; the next build recreates them",
+    ),
+    nested_project(
+        "project-ios-build",
+        "iOS build output",
+        "ios/*.xcodeproj",
+        "ios/build",
+        "Xcode",
+        72,
+        "Compiled iOS output that Git ignores; the next build recreates it",
+    ),
+    nested_project(
+        "project-yarn-offline-cache",
+        "Yarn project cache",
+        "package.json",
+        ".yarn/berry-cache",
+        "Yarn",
+        0,
+        "Package archives kept inside the project; `yarn install` downloads them again",
+    ),
+    TargetSpec {
+        id: "xcode-device-support",
+        display_name: "Xcode device support",
+        home_relative_root: "Library/Developer/Xcode/iOS DeviceSupport",
+        category: "Developer symbol cache",
+        reason: "Debug symbols Xcode copied from a connected iPhone or iPad",
+        owner: "Xcode",
+        recovery: "Xcode copies the symbols again the next time that device is connected",
+        recovery_mode: RecoveryMode::Redownload,
+        safety_tier: SafetyTier::ReviewRequired,
+        minimum_age: Duration::from_hours(72),
+        layout: TargetLayout::Children,
+        require_git_ignored: false,
+    },
+    TargetSpec {
+        id: "chrome-on-device-model",
+        display_name: "Chrome on-device model",
+        home_relative_root: "Library/Application Support/Google/Chrome",
+        category: "Application cache",
+        reason: "A downloaded AI model that Chrome fetches on its own",
+        owner: "Google Chrome",
+        recovery: "Chrome downloads the model again when a feature needs it",
+        recovery_mode: RecoveryMode::Redownload,
+        safety_tier: SafetyTier::ReviewRequired,
+        minimum_age: Duration::from_hours(24),
+        layout: TargetLayout::Named("OptGuideOnDeviceModel"),
+        require_git_ignored: false,
+    },
 ];
 
 /// Home-relative directory that contains the projects Mac Cleaner inspects.
@@ -186,6 +258,7 @@ const fn named(
         safety_tier: SafetyTier::ReviewRequired,
         minimum_age: Duration::ZERO,
         layout: TargetLayout::Named(entry),
+        require_git_ignored: false,
     }
 }
 
@@ -210,6 +283,34 @@ const fn project(
         safety_tier: SafetyTier::ReviewRequired,
         minimum_age: Duration::ZERO,
         layout: TargetLayout::Project { marker, entry },
+        require_git_ignored: false,
+    }
+}
+
+/// A generated folder nested below a project root (for example
+/// `ios/DerivedData`). Offered only when Git ignores it and tracks nothing in
+/// it, and only after it has been idle for `idle_hours`.
+const fn nested_project(
+    id: &'static str,
+    display_name: &'static str,
+    marker: &'static str,
+    entry: &'static str,
+    owner: &'static str,
+    idle_hours: u64,
+    reason: &'static str,
+) -> TargetSpec {
+    TargetSpec {
+        minimum_age: Duration::from_hours(idle_hours),
+        require_git_ignored: true,
+        ..project(
+            id,
+            display_name,
+            marker,
+            entry,
+            owner,
+            RecoveryMode::Rebuild,
+            reason,
+        )
     }
 }
 
@@ -282,22 +383,25 @@ pub fn candidate_path(
             }
         }
         TargetLayout::Project { marker, entry } => {
-            let depth_ok = components.len() == 2 || components.len() == 3;
-            let name_ok = relative_entry.file_name() == Some(entry.as_ref());
+            // The entry may itself span several components (`ios/DerivedData`);
+            // what precedes it is the project path, one or two levels deep.
+            let entry_depth = target.entry_depth();
+            let depth_ok =
+                components.len() == entry_depth + 1 || components.len() == entry_depth + 2;
+            let name_ok = relative_entry.ends_with(entry);
             // Project names must not themselves be generated or hidden
             // directories, which keeps `node_modules/x/node_modules` and
             // dot-directories out.
-            let parents_ok =
-                components[..components.len().saturating_sub(1)]
-                    .iter()
-                    .all(|component| {
-                        let name = component.as_os_str().to_string_lossy();
-                        !name.starts_with('.') && !GENERATED_NAMES.contains(&name.as_ref())
-                    });
-            let project_root = path.parent().map(Path::to_path_buf);
-            let marker_ok = project_root
-                .as_ref()
-                .is_some_and(|root| marker_is_regular_file(&root.join(marker)));
+            let project_components = components.len().saturating_sub(entry_depth);
+            let parents_ok = components[..project_components].iter().all(|component| {
+                let name = component.as_os_str().to_string_lossy();
+                !name.starts_with('.') && !GENERATED_NAMES.contains(&name.as_ref())
+            });
+            let project_root = relative_entry
+                .components()
+                .take(project_components)
+                .fold(root.clone(), |acc, component| acc.join(component));
+            let marker_ok = marker_present(&project_root, marker);
             if !(depth_ok && name_ok && parents_ok && marker_ok) {
                 return Err(PolicyError::InvalidCandidatePath(
                     relative_entry.to_path_buf(),
@@ -310,6 +414,28 @@ pub fn candidate_path(
 
 const GENERATED_NAMES: &[&str] = &["node_modules", "target", "build", "Pods", "vendor"];
 
-fn marker_is_regular_file(path: &Path) -> bool {
-    std::fs::symlink_metadata(path).is_ok_and(|metadata| metadata.is_file())
+/// Whether `project_root` contains the target's marker.
+///
+/// A plain marker must be a regular file. A marker whose last component is
+/// `*.ext` (for example `ios/*.xcodeproj`) matches any non-symlink entry in
+/// that directory with the extension, because Xcode projects are directories.
+#[must_use]
+pub fn marker_present(project_root: &Path, marker: &str) -> bool {
+    let marker_path = project_root.join(marker);
+    let Some(pattern) = marker_path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    let Some(suffix) = pattern.strip_prefix('*') else {
+        return std::fs::symlink_metadata(&marker_path).is_ok_and(|metadata| metadata.is_file());
+    };
+    let Some(parent) = marker_path.parent() else {
+        return false;
+    };
+    std::fs::read_dir(parent).is_ok_and(|entries| {
+        entries.filter_map(Result::ok).any(|entry| {
+            entry.file_name().to_string_lossy().ends_with(suffix)
+                && std::fs::symlink_metadata(entry.path())
+                    .is_ok_and(|metadata| !metadata.file_type().is_symlink())
+        })
+    })
 }

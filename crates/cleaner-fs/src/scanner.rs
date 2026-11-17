@@ -8,7 +8,9 @@ use chrono::{DateTime, Utc};
 use cleaner_domain::{
     CATALOG_VERSION, CandidateId, CleanupCandidate, ScanReport, ScanSkip, TargetId,
 };
-use cleaner_policy::{TargetLayout, TargetSpec, candidate_path, catalog, catalog_root};
+use cleaner_policy::{
+    TargetLayout, TargetSpec, candidate_path, catalog, catalog_root, marker_present,
+};
 use sha2::{Digest, Sha256};
 
 use crate::FsError;
@@ -144,6 +146,22 @@ impl Scanner {
             }
         }
 
+        if target.require_git_ignored
+            && let TargetLayout::Project { entry, .. } = target.layout
+        {
+            let project_root = path
+                .ancestors()
+                .nth(target.entry_depth())
+                .map(Path::to_path_buf)
+                .unwrap_or_default();
+            if !crate::git::is_ignored_and_untracked(&project_root, Path::new(entry)) {
+                return Err(unsafe_candidate(
+                    &path,
+                    "Git does not ignore it, or tracks files inside it",
+                ));
+            }
+        }
+
         let metadata = metadata_no_follow(&path)?;
         validate_metadata(&path, &metadata, device)?;
         let resolved = path.canonicalize().map_err(|source| FsError::Io {
@@ -224,9 +242,7 @@ fn discover_entries(
                     roots.extend(children.into_iter().filter(|path| is_real_dir(path)));
                 }
                 for project_root in roots {
-                    if !fs::symlink_metadata(project_root.join(marker))
-                        .is_ok_and(|metadata| metadata.is_file())
-                    {
+                    if !marker_present(&project_root, marker) {
                         continue;
                     }
                     let path = project_root.join(entry);

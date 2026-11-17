@@ -5,6 +5,7 @@ compile_error!("cleaner-fs currently supports Unix filesystems only");
 
 mod error;
 mod executor;
+mod git;
 mod metadata;
 mod quarantine;
 mod scanner;

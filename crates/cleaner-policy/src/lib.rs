@@ -7,7 +7,7 @@ mod plans;
 mod quarantine;
 
 pub use catalog::{
-    PROJECTS_ROOT, TargetLayout, TargetSpec, candidate_path, catalog, catalog_root,
+    PROJECTS_ROOT, TargetLayout, TargetSpec, candidate_path, catalog, catalog_root, marker_present,
     safe_auto_catalog,
 };
 pub use error::PolicyError;

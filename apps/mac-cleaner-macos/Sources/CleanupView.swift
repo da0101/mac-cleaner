@@ -386,26 +386,36 @@ struct CleanupView: View {
     private var recoveryBytes: UInt64 { model.quarantine.reduce(0) { $0 &+ $1.bytes } }
 
     private var toolManaged: [StorageHotspot] {
-        (model.storage?.hotspots ?? [])
+        // A location that Rust now offers as a removable item is not repeated
+        // as a read-only row.
+        let offered = Set(candidates.map(\.targetId))
+        let promoted: [String: String] = [
+            "Xcode device support": "xcode-device-support",
+            "Chrome on-device model": "chrome-on-device-model",
+        ]
+        return (model.storage?.hotspots ?? [])
             .filter { hotspot in
-                (hotspot.disposition == "tool-managed" && hotspot.bytes >= 100_000_000)
+                if let target = promoted[hotspot.displayName], offered.contains(target) { return false }
+                return (hotspot.disposition == "tool-managed" && hotspot.bytes >= 100_000_000)
                     || (hotspot.displayName == "Simulator test recordings")
                     || (hotspot.displayName == "uv package cache" && hotspot.bytes >= 50_000_000)
             }
             .sorted { $0.bytes > $1.bytes }
     }
 
+    private static let xcodeTargets: Set<String> = ["xcode-derived-data", "xcode-device-support"]
+
     private var groups: [CandidateGroup] {
         let definitions: [(String, String, String, (String) -> Bool)] = [
             ("caches", "Download caches",
              "Shared package and browser downloads. Cheapest to remove: tools fetch them again when needed.",
-             { !$0.hasPrefix("project-") && $0 != "xcode-derived-data" }),
+             { !$0.hasPrefix("project-") && !Self.xcodeTargets.contains($0) }),
             ("projects", "Project dependencies and builds",
              "Per-project folders. The next install or build recreates them, which can take minutes.",
              { $0.hasPrefix("project-") }),
-            ("xcode", "Old Xcode builds",
-             "Projects untouched for 14 days. Xcode rebuilds and re-indexes on next open.",
-             { $0 == "xcode-derived-data" }),
+            ("xcode", "Old Xcode data",
+             "Unused build output and device symbols. Xcode rebuilds or copies them again when needed.",
+             { Self.xcodeTargets.contains($0) }),
         ]
         return definitions.compactMap { id, title, subtitle, matches in
             let items = candidates.filter { matches($0.targetId) }.sorted { $0.bytes > $1.bytes }
@@ -432,8 +442,13 @@ struct CleanupView: View {
 
     private func title(for candidate: CleanupCandidate) -> String {
         if candidate.targetId.hasPrefix("project-") {
+            // Nested entries such as `ios/build` or `.yarn/berry-cache` span two components.
+            let nested: Set<String> = ["project-xcode-derived-data", "project-ios-build", "project-yarn-offline-cache"]
             let parts = candidate.relativeEntry.split(separator: "/")
-            return parts.dropLast().joined(separator: "/")
+            return parts.dropLast(nested.contains(candidate.targetId) ? 2 : 1).joined(separator: "/")
+        }
+        if candidate.targetId == "xcode-device-support" {
+            return candidate.relativeEntry
         }
         if candidate.targetId == "xcode-derived-data" {
             return candidate.relativeEntry.split(separator: "-").dropLast().joined(separator: "-")
@@ -448,6 +463,10 @@ struct CleanupView: View {
         case "project-dart-tool": ".dart_tool"
         case "project-flutter-build": "Flutter build"
         case "xcode-derived-data": "DerivedData"
+        case "project-xcode-derived-data": "Xcode DerivedData"
+        case "project-ios-build": "iOS build"
+        case "project-yarn-offline-cache": "Yarn cache"
+        case "xcode-device-support": "device symbols"
         default: ""
         }
     }
