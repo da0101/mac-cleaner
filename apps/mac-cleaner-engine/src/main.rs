@@ -2,7 +2,7 @@ use std::process::ExitCode;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
-use cleaner_domain::{CandidateId, ExecutionMode, QuarantineAction};
+use cleaner_domain::{AutoCleanSettings, CandidateId, ExecutionMode, QuarantineAction};
 use cleaner_service::AppService;
 use directories::{BaseDirs, ProjectDirs};
 use serde::Serialize;
@@ -63,7 +63,27 @@ enum Command {
         #[arg(long, default_value_t = 20)]
         limit: u32,
     },
+    /// Current auto-clean settings (everything off until the owner opts in).
+    AutoSettings,
+    /// Replace the auto-clean settings; Rust validates and clamps them.
+    AutoSettingsSet {
+        json: String,
+    },
+    /// One scheduler step: RAM-relief decision plus any due storage clean.
+    AutoTick,
+    /// Record that an opted-in app was asked to quit.
+    AutoReportQuit {
+        app: String,
+        bytes: u64,
+    },
+    AutoLog {
+        #[arg(long, default_value_t = 30)]
+        limit: u32,
+    },
 }
+
+const MAX_AUTO_SETTINGS_BYTES: usize = 16 * 1024;
+const MAX_APP_NAME_BYTES: usize = 80;
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
 enum EngineQuarantineAction {
@@ -171,6 +191,26 @@ async fn run(cli: Cli) -> Result<Value> {
         Command::ToolHistory { limit } => {
             serde_json::to_value(service.recent_tool_cleanup_receipts(limit)?)?
         }
+        Command::AutoSettings => serde_json::to_value(service.auto_settings()?)?,
+        Command::AutoSettingsSet { json } => {
+            anyhow::ensure!(
+                json.len() <= MAX_AUTO_SETTINGS_BYTES,
+                "auto-clean settings are too large"
+            );
+            let settings: AutoCleanSettings =
+                serde_json::from_str(&json).context("auto-clean settings are not valid")?;
+            serde_json::to_value(service.set_auto_settings(settings)?)?
+        }
+        Command::AutoTick => serde_json::to_value(service.auto_tick().await?)?,
+        Command::AutoReportQuit { app, bytes } => {
+            anyhow::ensure!(
+                !app.is_empty() && app.len() <= MAX_APP_NAME_BYTES,
+                "app name has an invalid length"
+            );
+            service.auto_report_quit(&app, bytes)?;
+            json!({ "recorded": true })
+        }
+        Command::AutoLog { limit } => serde_json::to_value(service.auto_log(limit)?)?,
     };
     Ok(data)
 }

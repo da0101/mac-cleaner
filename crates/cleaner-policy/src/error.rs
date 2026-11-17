@@ -30,6 +30,8 @@ pub enum PolicyError {
     StaleCatalog(u32),
     #[error("cleanup plan TTL cannot be represented")]
     InvalidPlanTtl,
+    #[error("auto-clean settings rejected: {0}")]
+    InvalidAutoSettings(String),
     #[error("cleanup plan impact is too large to represent")]
     ImpactOverflow,
 }

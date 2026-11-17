@@ -60,6 +60,33 @@ impl SystemMonitor {
             processes,
         })
     }
+
+    /// Every running process, not only the heaviest. Auto-clean needs the full
+    /// list to total an app's helper processes and to confirm none is protected.
+    pub fn all_processes(&self) -> Vec<ProcessSnapshot> {
+        let mut system = self.system.lock();
+        system.refresh_processes(ProcessesToUpdate::All, true);
+        system
+            .processes()
+            .iter()
+            .map(|(pid, process)| process_snapshot(pid.as_u32(), process))
+            .collect()
+    }
+}
+
+fn process_snapshot(pid: u32, process: &sysinfo::Process) -> ProcessSnapshot {
+    let name = process.name().to_string_lossy().into_owned();
+    let (protected, protection_reason) = protection(&name);
+    ProcessSnapshot {
+        pid,
+        start_time_unix: process.start_time(),
+        name,
+        executable: process.exe().and_then(Path::to_str).map(str::to_owned),
+        memory_bytes: process.memory(),
+        cpu_percent: process.cpu_usage(),
+        protected,
+        protection_reason,
+    }
 }
 
 fn classify_cpu_pressure(usage_percent: f32) -> CpuPressureLevel {
@@ -186,20 +213,7 @@ fn top_processes(system: &System) -> Vec<ProcessSnapshot> {
     let processes = system
         .processes()
         .iter()
-        .map(|(pid, process)| {
-            let name = process.name().to_string_lossy().into_owned();
-            let (protected, protection_reason) = protection(&name);
-            ProcessSnapshot {
-                pid: pid.as_u32(),
-                start_time_unix: process.start_time(),
-                name,
-                executable: process.exe().and_then(Path::to_str).map(str::to_owned),
-                memory_bytes: process.memory(),
-                cpu_percent: process.cpu_usage(),
-                protected,
-                protection_reason,
-            }
-        })
+        .map(|(pid, process)| process_snapshot(pid.as_u32(), process))
         .collect::<Vec<_>>();
 
     let mut by_memory = processes.clone();

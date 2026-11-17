@@ -1,11 +1,13 @@
 //! Versioned target catalog and fail-closed cleanup authorization.
 
+mod auto;
 mod catalog;
 mod error;
 mod paths;
 mod plans;
 mod quarantine;
 
+pub use auto::{app_bundle, is_never_quit, plan_ram_relief, validate_auto_settings};
 pub use catalog::{
     PROJECTS_ROOT, TargetLayout, TargetSpec, candidate_path, catalog, catalog_root, marker_present,
     safe_auto_catalog,

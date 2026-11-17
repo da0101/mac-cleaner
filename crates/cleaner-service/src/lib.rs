@@ -23,6 +23,7 @@ use parking_lot::{Mutex, RwLock};
 use tokio::sync::Mutex as AsyncMutex;
 use uuid::Uuid;
 
+mod auto;
 mod error;
 mod fs_safety;
 mod tool_cleanup;

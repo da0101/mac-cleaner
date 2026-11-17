@@ -175,3 +175,119 @@ async fn restart_never_resumes_an_approved_quarantine_action()
     assert_eq!(restarted.active_quarantine(10)?.len(), 1);
     Ok(())
 }
+
+fn age(path: &Path, hours: u64) -> Result<(), Box<dyn std::error::Error>> {
+    let old = FileTime::from_system_time(SystemTime::now() - Duration::from_hours(hours));
+    set_file_mtime(path, old)?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn auto_clean_is_off_by_default_and_only_removes_opted_in_idle_categories()
+-> Result<(), Box<dyn std::error::Error>> {
+    use cleaner_domain::AutoCleanSettings;
+
+    let fake = TempDir::new()?;
+    let home = fake.path().join("home");
+    let data = fake.path().join("state");
+    fs::create_dir_all(&home)?;
+
+    // An idle npx cache, an idle npm cache the owner did not opt into, and a source file.
+    let npx = home.join(".npm/_npx");
+    fs::create_dir_all(npx.join("pkg"))?;
+    fs::write(npx.join("pkg/index.js"), vec![1_u8; 4_096])?;
+    for path in [npx.join("pkg/index.js"), npx.join("pkg"), npx.clone()] {
+        age(&path, 72)?;
+    }
+    let npm = home.join(".npm/_cacache");
+    fs::create_dir_all(&npm)?;
+    fs::write(npm.join("entry"), vec![1_u8; 4_096])?;
+    for path in [npm.join("entry"), npm.clone()] {
+        age(&path, 72)?;
+    }
+    let canary = home.join("Documents/repository/source.dart");
+    fs::create_dir_all(canary.parent().ok_or("canary parent missing")?)?;
+    fs::write(&canary, "safe")?;
+
+    let service = AppService::open(home, data)?;
+
+    // Nothing is enabled until the owner opts in.
+    let idle = service.auto_tick().await?;
+    assert!(idle.storage.is_none());
+    assert_eq!(service.auto_log(10)?.len(), 0);
+
+    let mut settings = AutoCleanSettings::default();
+    settings.storage.enabled = true;
+    settings.storage.target_ids = vec!["npm-npx-cache".to_owned()];
+    service.set_auto_settings(settings)?;
+
+    let report = service.auto_tick().await?;
+    let storage = report.storage.ok_or("storage run missing")?;
+    assert_eq!(storage.items, 1);
+    assert!(storage.bytes_freed > 0);
+    assert!(!npx.exists(), "opted-in idle cache is gone");
+    assert!(
+        npm.exists(),
+        "category the owner did not choose is untouched"
+    );
+    assert!(canary.exists());
+    assert!(
+        service.active_quarantine(10)?.is_empty(),
+        "purged, not parked"
+    );
+
+    let log = service.auto_log(10)?;
+    assert_eq!(log.len(), 1);
+    assert!(log[0].summary.contains("Removed 1 item"));
+
+    // The next tick is not due yet, so nothing else is scanned or removed.
+    let again = service.auto_tick().await?;
+    assert!(again.storage.is_none());
+    Ok(())
+}
+
+#[tokio::test]
+async fn auto_clean_never_removes_recently_changed_items() -> Result<(), Box<dyn std::error::Error>>
+{
+    use cleaner_domain::AutoCleanSettings;
+
+    let fake = TempDir::new()?;
+    let home = fake.path().join("home");
+    let data = fake.path().join("state");
+    let fresh = home.join(".npm/_npx");
+    fs::create_dir_all(&fresh)?;
+    fs::write(fresh.join("index.js"), "just now")?;
+
+    let service = AppService::open(home, data)?;
+    let mut settings = AutoCleanSettings::default();
+    settings.storage.enabled = true;
+    settings.storage.target_ids = vec!["npm-npx-cache".to_owned()];
+    service.set_auto_settings(settings)?;
+
+    let report = service.auto_tick().await?;
+    assert_eq!(report.storage.ok_or("storage run missing")?.items, 0);
+    assert!(fresh.exists());
+    Ok(())
+}
+
+#[tokio::test]
+async fn auto_settings_reject_protected_apps_and_quit_reports_are_logged()
+-> Result<(), Box<dyn std::error::Error>> {
+    use cleaner_domain::{AutoCleanSettings, AutoLogKind};
+
+    let fake = TempDir::new()?;
+    let home = fake.path().join("home");
+    fs::create_dir_all(&home)?;
+    let service = AppService::open(home, fake.path().join("state"))?;
+
+    let mut bad = AutoCleanSettings::default();
+    bad.ram.quit_apps = vec!["Docker Desktop".to_owned()];
+    assert!(service.set_auto_settings(bad).is_err());
+    assert!(service.auto_settings()?.ram.quit_apps.is_empty());
+
+    service.auto_report_quit("Slack", 900 * 1_048_576)?;
+    let log = service.auto_log(5)?;
+    assert_eq!(log[0].kind, AutoLogKind::RamQuit);
+    assert!(log[0].summary.contains("Slack"));
+    Ok(())
+}
