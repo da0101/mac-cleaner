@@ -269,7 +269,8 @@ struct AutoCleanView: View {
     }
 
     private var appRows: [RunningApp] {
-        var rows = runningApps
+        // Filtered here, not when apps are collected, so it follows the protected list once it loads.
+        var rows = runningApps.filter { !isProtected($0.name) }
         for name in model.autoSettings.ram.quitApps
         where !rows.contains(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
             rows.append(RunningApp(name: name, icon: nil, running: false))
@@ -286,8 +287,7 @@ struct AutoCleanView: View {
                   let path = app.bundleURL?.path,
                   allowed.contains(where: { path.hasPrefix($0) }),
                   app.bundleIdentifier != Bundle.main.bundleIdentifier,
-                  let name = app.localizedName,
-                  !isProtected(name) else { return nil }
+                  let name = app.localizedName else { return nil }
             return RunningApp(name: name, icon: app.icon, running: true)
         }
     }
