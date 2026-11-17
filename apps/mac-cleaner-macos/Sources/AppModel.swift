@@ -145,9 +145,16 @@ final class AppModel: ObservableObject {
             let next: SystemSnapshot = try await engine.run(.status)
             snapshot = next
             let freed = freeBefore.map { next.disk.availableBytes > $0 ? next.disk.availableBytes - $0 : 0 }
-            notice = eraseImmediately
+            let summary = eraseImmediately
                 ? "Erased \(receipt.items.count) item(s). Free space grew by \(Formatting.bytes(freed ?? plan.totalBytes))."
                 : "Moved \(receipt.items.count) item(s), \(Formatting.bytes(plan.totalBytes)), to Recovery. Empty Recovery to free the space."
+            notice = summary + " Updating storage totals…"
+            // Storage rows (for example "Managed by other apps") are measured data;
+            // without a fresh measurement they keep listing what was just removed.
+            if let refreshed: StorageAnalysis = try? await engine.run(.storageAnalyze) {
+                storage = refreshed
+            }
+            notice = summary
         }
     }
 
