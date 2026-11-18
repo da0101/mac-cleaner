@@ -52,6 +52,9 @@ impl StorageAnalyzer {
         for spec in fixed_specs() {
             self.add_hotspot(&mut hotspots, &mut warnings, home_device, spec);
         }
+        if let Some(spec) = crate::storage_catalog::system_temp_spec() {
+            self.add_hotspot(&mut hotspots, &mut warnings, home_device, spec);
+        }
         self.inspect_projects(&mut hotspots, &mut warnings, home_device);
         hotspots.sort_by_key(|item| std::cmp::Reverse(item.bytes));
         let reviewable_bytes = hotspots

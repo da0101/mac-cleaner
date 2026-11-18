@@ -28,6 +28,24 @@ enum Formatting {
         return "\(value > 0 ? "+" : "−")\(bytes(magnitude))"
     }
 
+    /// "2 hours ago" for an RFC 3339 timestamp from the engine.
+    static func relative(_ iso: String) -> String {
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let plain = ISO8601DateFormatter()
+        guard let date = parser.date(from: iso) ?? plain.date(from: iso) else { return iso }
+        return RelativeDateTimeFormatter().localizedString(for: date, relativeTo: Date())
+    }
+
+    /// "Nov 16, 9:14 PM" for an RFC 3339 timestamp from the engine.
+    static func dateTime(_ iso: String) -> String {
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let plain = ISO8601DateFormatter()
+        guard let date = parser.date(from: iso) ?? plain.date(from: iso) else { return iso }
+        return date.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+    }
+
     static func percent(_ used: UInt64, of total: UInt64) -> Double {
         guard total > 0 else { return 0 }
         return min(max(Double(used) / Double(total), 0), 1)

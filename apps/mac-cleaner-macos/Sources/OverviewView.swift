@@ -6,10 +6,11 @@ struct OverviewView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 14) {
                 header
                 if let snapshot = model.snapshot {
                     healthGrid(snapshot)
+                    SpaceChangeCard()
                     quickWins(snapshot)
                     ProcessPanel(
                         processes: highlightedProcesses(snapshot.processes),
@@ -60,7 +61,7 @@ struct OverviewView: View {
             StorageSpotlight(disk: snapshot.disk)
                 .frame(maxWidth: .infinity)
 
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 CompactHealthCard(
                     eyebrow: "MEMORY AVAILABLE",
                     value: Formatting.bytes(snapshot.memory.availableBytes),
@@ -83,7 +84,7 @@ struct OverviewView: View {
                     tint: cpuTint(snapshot.cpu.pressure)
                 )
             }
-            .frame(width: 278)
+            .frame(width: 262)
         }
     }
 
@@ -205,23 +206,23 @@ private struct StorageSpotlight: View {
                         .tracking(1.25)
                         .foregroundStyle(CleanerTheme.mint)
                     Text("Plenty of room to build")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
                 }
                 Spacer()
                 ZStack {
                     Circle().fill(CleanerTheme.mint.opacity(0.14))
                     Image(systemName: "internaldrive.fill")
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(CleanerTheme.mint)
                 }
-                .frame(width: 48, height: 48)
+                .frame(width: 34, height: 34)
             }
 
-            Spacer(minLength: 18)
+            Spacer(minLength: 6)
 
             HStack(alignment: .firstTextBaseline, spacing: 7) {
                 Text(Formatting.bytes(disk.availableBytes))
-                    .font(.system(size: 38, weight: .bold, design: .rounded))
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
                     .tracking(-1.25)
                     .monospacedDigit()
                 Text("free")
@@ -229,7 +230,7 @@ private struct StorageSpotlight: View {
                     .foregroundStyle(.secondary)
             }
 
-            Spacer(minLength: 16)
+            Spacer(minLength: 8)
 
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
@@ -252,8 +253,7 @@ private struct StorageSpotlight: View {
             .foregroundStyle(.secondary)
             .padding(.top, 7)
         }
-        .padding(20)
-        .frame(minHeight: 206)
+        .padding(14)
         .background(
             LinearGradient(
                 colors: [CleanerTheme.mint.opacity(0.13), CleanerTheme.azure.opacity(0.075), Color.primary.opacity(0.025)],
@@ -286,15 +286,15 @@ private struct CompactHealthCard: View {
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(tint)
             }
-            .frame(width: 45, height: 45)
+            .frame(width: 34, height: 34)
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(eyebrow)
                     .font(.system(size: 9, weight: .bold, design: .rounded))
                     .tracking(1.0)
                     .foregroundStyle(tint)
                 Text(value)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
                     .tracking(-0.35)
                     .monospacedDigit()
                 Text(detail)
@@ -304,8 +304,9 @@ private struct CompactHealthCard: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(15)
-        .frame(maxWidth: .infinity, minHeight: 97, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: 62, alignment: .leading)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -518,5 +519,221 @@ private struct QuickWinRow: View {
         }
         .padding(12)
         .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+// MARK: Where did my space go
+
+/// Answers "where did my free space go since the last checkpoint?" from measured data only:
+/// the whole-disk change, each tracked location's change, and an honest unexplained remainder.
+private struct SpaceChangeCard: View {
+    @EnvironmentObject private var model: AppModel
+
+    private let minimumShown: Int64 = 50_000_000
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            header
+            if let storage = model.storage {
+                if model.justCheckpointed {
+                    justSet(storage)
+                } else if let comparison = storage.comparison, comparison.kind == "baseline" {
+                    changes(storage, comparison)
+                } else {
+                    noCheckpoint
+                }
+            } else {
+                HStack(spacing: 10) {
+                    ProgressView().controlSize(.small)
+                    Text("Measuring known storage locations…").font(.callout).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(18)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(CleanerTheme.amber.opacity(0.22), lineWidth: 1)
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("WHERE DID MY SPACE GO")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .tracking(1.4)
+                    .foregroundStyle(CleanerTheme.amber)
+                Text("Changes since your last checkpoint")
+                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+            }
+            Spacer()
+            Button("Re-measure", systemImage: "arrow.clockwise") { Task { await model.analyzeStorage() } }
+                .buttonStyle(.bordered)
+                .disabled(model.isBusy)
+            Button("Set checkpoint now", systemImage: "flag.fill") { Task { await model.setStorageBaseline() } }
+                .buttonStyle(.bordered)
+                .tint(CleanerTheme.amber)
+                .disabled(model.isBusy || model.storage == nil)
+        }
+    }
+
+    private var noCheckpoint: some View {
+        Text("No checkpoint yet. Clean something up or press “Set checkpoint now”. From then on, this box lists every place your free space went, with sizes.")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+    }
+
+    private func justSet(_ storage: StorageAnalysis) -> some View {
+        Text("Checkpoint saved at \(Formatting.bytes(storage.availableBytes)) free. Use your Mac as normal, then press Re-measure to see exactly where space went.")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+    }
+
+    private func changes(_ storage: StorageAnalysis, _ comparison: StorageComparison) -> some View {
+        // The itemised list comes from the last measurement; the headline uses live free space
+        // so it never lags behind the Storage card above.
+        let measuredFree: UInt64? = storage.availableBytes
+        let checkpointFree = Int64(clamping: storage.availableBytes) &+ comparison.volumeUsedDeltaBytes
+        let liveFree = Int64(clamping: model.snapshot?.disk.availableBytes ?? storage.availableBytes)
+        let freeChange = liveFree &- checkpointFree
+        // Swap is read live, so its row never lags behind the headline. Everything else is as of the last measurement.
+        let swapID = "system-memory-swap"
+        let swapSpot = storage.hotspots.first { $0.id == swapID }
+        let liveSwap = Int64(clamping: model.snapshot?.memory.swapUsedBytes ?? swapSpot?.bytes ?? 0)
+        let swapDeltaLive: Int64? = swapSpot?.previousBytes.map { liveSwap &- Int64(clamping: $0) }
+        let movers = storage.hotspots
+            .compactMap { spot -> (StorageHotspot, Int64)? in
+                guard spot.id != swapID, let delta = spot.deltaBytes, abs(delta) >= minimumShown else { return nil }
+                return (spot, delta)
+            }
+            .sorted { abs($0.1) > abs($1.1) }
+            .prefix(6)
+        // Free space also moved after the last measurement. Swap's part of that is known live;
+        // the rest happened somewhere that only a fresh Re-measure can name.
+        let sinceMeasurement = measuredFree.map { Int64(clamping: $0) &- liveFree } ?? 0
+        let swapSinceMeasurement = swapSpot.map { liveSwap &- Int64(clamping: $0.bytes) } ?? 0
+        let otherSinceMeasurement = sinceMeasurement &- swapSinceMeasurement
+        // What the measured locations could not account for at the moment of the last measurement.
+        let unexplained = comparison.accountingGapBytes
+        // Items the checkpoint never measured: their growth cannot be split out, so it lands in the remainder.
+        let newlyTracked = storage.hotspots
+            .filter { $0.comparisonState == "newly-tracked" && $0.bytes >= UInt64(minimumShown) }
+            .sorted { $0.bytes > $1.bytes }
+        let newlyTrackedBytes = newlyTracked.reduce(UInt64(0)) { $0 &+ $1.bytes }
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(Formatting.signedBytes(freeChange))
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .foregroundStyle(freeChange < 0 ? CleanerTheme.coral : CleanerTheme.mint)
+                    .monospacedDigit()
+                Text("free space since your checkpoint")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            HStack(spacing: 8) {
+                Image(systemName: "flag.fill").foregroundStyle(CleanerTheme.amber)
+                Text("Checkpoint: \(Formatting.dateTime(comparison.capturedAt)) (\(Formatting.relative(comparison.capturedAt))) · \(Formatting.bytes(UInt64(clamping: checkpointFree))) free then, \(Formatting.bytes(UInt64(clamping: liveFree))) free now")
+                    .font(.callout.weight(.medium))
+            }
+            if movers.isEmpty {
+                Text("No tracked location changed by more than 50 MB.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            VStack(spacing: 1) {
+                if let swapSpot, let delta = swapDeltaLive, abs(delta) >= minimumShown {
+                    row(
+                        title: swapSpot.displayName,
+                        note: delta > 0
+                            ? "Live. Temporary: macOS writes memory to disk under pressure and gives it back later."
+                            : "Live. macOS released swap, so this space came back.",
+                        delta: delta,
+                        tint: delta > 0 ? CleanerTheme.coral : CleanerTheme.mint
+                    )
+                }
+                ForEach(Array(movers), id: \.0.id) { spot, delta in
+                    moverRow(spot, delta)
+                }
+                if abs(otherSinceMeasurement) >= minimumShown {
+                    row(
+                        title: "Changed since the last measurement",
+                        note: "Happened after \(Formatting.relative(storage.capturedAt)). Press Re-measure to name the exact locations.",
+                        delta: otherSinceMeasurement,
+                        tint: CleanerTheme.violet
+                    )
+                }
+                if abs(unexplained) >= minimumShown {
+                    row(
+                        title: "Still unexplained",
+                        note: newlyTrackedBytes >= UInt64(max(unexplained, 0)) / 2
+                            ? "Mostly growth of the newly tracked items below, which were never measured at the checkpoint."
+                            : "Not in any location Mac Cleaner tracks. Set a new checkpoint so growth in the newly tracked items below is itemised next time.",
+                        delta: unexplained,
+                        tint: CleanerTheme.violet
+                    )
+                }
+            }
+            Text("Per-location sizes measured \(Formatting.relative(storage.capturedAt)). Press Re-measure to refresh them; the headline above is live.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            if !newlyTracked.isEmpty {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("NEWLY TRACKED · size now, change unknown until the next checkpoint")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .tracking(0.8)
+                        .foregroundStyle(.tertiary)
+                        .padding(.bottom, 4)
+                    ForEach(newlyTracked) { spot in
+                        row(
+                            title: spot.displayName,
+                            note: note(for: spot, delta: 0),
+                            text: Formatting.bytes(spot.id == "system-memory-swap" ? (model.snapshot?.memory.swapUsedBytes ?? spot.bytes) : spot.bytes) + " now",
+                            tint: CleanerTheme.violet
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private func moverRow(_ spot: StorageHotspot, _ delta: Int64) -> some View {
+        row(
+            title: spot.displayName,
+            note: note(for: spot, delta: delta),
+            delta: delta,
+            tint: delta > 0 ? CleanerTheme.coral : CleanerTheme.mint
+        )
+    }
+
+    private func note(for spot: StorageHotspot, delta: Int64) -> String {
+        if spot.id == "system-memory-swap" {
+            return "Temporary. macOS writes memory to disk under pressure and gives it back later."
+        }
+        switch spot.disposition {
+        case "reviewable": return "Rebuildable. Free Up Space can remove it."
+        case "tool-managed": return "Owned by another app. Clean it from that app."
+        default: return "Protected. Mac Cleaner only reports it."
+        }
+    }
+
+    private func row(title: String, note: String, delta: Int64, tint: Color) -> some View {
+        row(title: title, note: note, text: Formatting.signedBytes(delta), tint: tint)
+    }
+
+    private func row(title: String, note: String, text: String, tint: Color) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.callout.weight(.semibold)).lineLimit(1)
+                Text(note).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer()
+            Text(text)
+                .font(.callout.weight(.semibold).monospacedDigit())
+                .foregroundStyle(tint)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
     }
 }

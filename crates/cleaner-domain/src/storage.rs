@@ -34,6 +34,7 @@ pub enum StorageCategory {
     ProjectBuild,
     TestArtifacts,
     ApplicationSupport,
+    SystemMemory,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]

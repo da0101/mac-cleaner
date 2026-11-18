@@ -68,6 +68,30 @@ impl AppService {
                 .hotspots
                 .sort_by_key(|item| std::cmp::Reverse(item.bytes));
         }
+        // Swap files live on a separate macOS volume, so the folder scan cannot see them,
+        // yet they take real disk space. Measured from live memory data and shown read-only.
+        if snapshot.memory.swap_used_bytes > 0 {
+            report.hotspots.push(cleaner_domain::StorageHotspot {
+                id: "system-memory-swap".to_owned(),
+                display_name: "Memory swap files".to_owned(),
+                path: std::path::PathBuf::from("/System/Volumes/VM"),
+                bytes: snapshot.memory.swap_used_bytes,
+                category: StorageCategory::SystemMemory,
+                disposition: cleaner_domain::StorageDisposition::Protected,
+                comparison_state: StorageComparisonState::NoBaseline,
+                previous_bytes: None,
+                delta_bytes: None,
+                reason: "macOS writes memory to disk when RAM runs short. It grows with memory pressure."
+                    .to_owned(),
+                recommendation:
+                    "Not deleted by hand. It shrinks after you quit heavy apps and restart them or reboot."
+                        .to_owned(),
+                recovery_cost: "Managed by macOS; no action in Mac Cleaner.".to_owned(),
+            });
+            report
+                .hotspots
+                .sort_by_key(|item| std::cmp::Reverse(item.bytes));
+        }
         let comparison = if let Some(baseline) = self.store.storage_baseline()? {
             Some((baseline, StorageComparisonKind::Baseline))
         } else {

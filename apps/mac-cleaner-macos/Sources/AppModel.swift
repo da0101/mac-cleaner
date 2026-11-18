@@ -29,6 +29,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var autoStatus = "Auto-clean is off."
     @Published private(set) var autoProtectedApps: [String] = []
     @Published private(set) var energy: EnergyReport?
+    /// True right after a checkpoint is saved from the current measurement, until the next measurement compares against it.
+    @Published private(set) var justCheckpointed = false
     @Published private(set) var isSamplingEnergy = false
 
     private let engine: EngineClient?
@@ -241,6 +243,7 @@ final class AppModel: ObservableObject {
         await perform("Measuring known storage paths…") { engine in
             let result: StorageAnalysis = try await engine.run(.storageAnalyze)
             storage = result
+            justCheckpointed = false
             notice = "Measured \(result.hotspots.count) known storage locations. Nothing was deleted."
         }
     }
@@ -249,7 +252,8 @@ final class AppModel: ObservableObject {
         guard let id = storage?.snapshotId else { return }
         await perform("Saving storage baseline…") { engine in
             let _: BaselineAcknowledgement = try await engine.run(.storageSetBaseline(id))
-            notice = "Baseline saved. Future scans will compare against this checkpoint."
+            justCheckpointed = true
+            notice = "Checkpoint saved. Overview will show where space goes from here."
         }
     }
 
@@ -310,6 +314,11 @@ final class AppModel: ObservableObject {
             // without a fresh measurement they keep listing what was just removed.
             if let refreshed: StorageAnalysis = try? await engine.run(.storageAnalyze) {
                 storage = refreshed
+                justCheckpointed = false
+                // A finished cleanup is the natural checkpoint: whatever disappears after it is new growth.
+                if (try? await engine.run(.storageSetBaseline(refreshed.snapshotId)) as BaselineAcknowledgement) != nil {
+                    justCheckpointed = true
+                }
             }
             notice = summary
         }

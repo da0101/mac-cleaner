@@ -87,3 +87,9 @@
 - 2026-11-17 — commit `475f0f6`: fix: status bar no longer covers the Clean bar; Auto-Clean switches update instantly — auto-logged
 
 - 2026-11-18 — commit `a0974ae`: feat: catalog Chrome, Homebrew, Playwright, Cypress, pip, Hugging Face, Bun, updater leftovers, XCTest clones and Maestro output — auto-logged
+
+- 2026-11-18 — commit `88bb558`: feat: Energy screen — per-app CPU and memory with helpers grouped; normal quit for non-protected apps — auto-logged
+
+- 2026-11-18 — commit `a2d4d8b`: feat: Auto-Clean app picker updates live and can quit apps; stable cleanup list order — auto-logged
+
+- 2026-11-18 — commit `38dbfed`: feat: menu bar quick-access panel with vitals, Auto-Clean switches, app icons and shortcuts — auto-logged

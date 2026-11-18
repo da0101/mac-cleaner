@@ -205,6 +205,15 @@ pub(crate) fn fixed_specs() -> Vec<HotspotSpec> {
             "Raw deletion can stop Claude from starting.",
         ),
         spec(
+            ".claude",
+            "Claude Code data",
+            ApplicationSupport,
+            Protected,
+            "Claude Code keeps session transcripts, settings and project memory here.",
+            "Review inside Claude Code; Mac Cleaner will not delete this directory.",
+            "Deleted sessions and memory cannot be restored.",
+        ),
+        spec(
             ".codex/sessions",
             "Codex session history",
             ApplicationSupport,
@@ -263,4 +272,23 @@ fn spec_abs(
         recommendation: recommendation.into(),
         recovery_cost: cost.into(),
     }
+}
+
+/// The per-user macOS temporary and cache area (`/var/folders/..`). Compilers, Xcode and
+/// installers write large short-lived files here, so growth here is otherwise invisible.
+pub(crate) fn system_temp_spec() -> Option<HotspotSpec> {
+    let user_root = std::env::temp_dir().parent()?.to_path_buf();
+    // Only the per-user folder under /var/folders is ever measured.
+    if !user_root.starts_with("/var/folders") && !user_root.starts_with("/private/var/folders") {
+        return None;
+    }
+    Some(spec_abs(
+        user_root,
+        "System temporary files",
+        StorageCategory::ApplicationSupport,
+        StorageDisposition::Protected,
+        "macOS and developer tools write temporary build and installer files here; most are removed on reboot.",
+        "Restarting the Mac clears most of it. Mac Cleaner only reports it.",
+        "Managed by macOS; no action in Mac Cleaner.",
+    ))
 }
