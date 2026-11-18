@@ -49,9 +49,9 @@ struct RootView: View {
                 CleanerBackdrop()
                 detail
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) { statusBar }
         }
         .tint(CleanerTheme.coral)
-        .safeAreaInset(edge: .bottom) { statusBar }
         .task { model.startMonitoring() }
         .background(
             WindowAppearanceConfigurator(isBusy: model.isBusy) {

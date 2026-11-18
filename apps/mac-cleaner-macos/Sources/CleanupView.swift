@@ -19,7 +19,7 @@ struct CleanupView: View {
                 }
                 .padding(.horizontal, 26)
                 .padding(.top, 22)
-                .padding(.bottom, 24)
+                .padding(.bottom, 28)
             }
             if !candidates.isEmpty {
                 actionBar

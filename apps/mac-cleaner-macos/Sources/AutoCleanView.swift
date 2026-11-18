@@ -18,7 +18,7 @@ struct AutoCleanView: View {
             }
             .padding(.horizontal, 26)
             .padding(.top, 22)
-            .padding(.bottom, 30)
+            .padding(.bottom, 28)
         }
         .navigationTitle("Auto-Clean")
         .task {

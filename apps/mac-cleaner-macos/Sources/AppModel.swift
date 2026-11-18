@@ -77,6 +77,8 @@ final class AppModel: ObservableObject {
 
     /// Runs for the life of the app. Rust owns every decision; this loop only
     /// asks it what to do every 30 seconds and carries out an app quit request.
+    private var autoSaveGeneration = 0
+
     func startAutoClean() {
         guard autoTask == nil else { return }
         autoTask = Task { [weak self] in
@@ -99,23 +101,34 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Saves the owner's choices. Rust validates and clamps them, so what comes
-    /// back is what is stored; a rejected change leaves the old settings.
+    /// Saves the owner's choices. The screen updates at once and the engine call
+    /// runs behind it, so a switch never waits on a helper process. Rust still
+    /// validates and clamps: when the last save returns, its answer replaces the
+    /// optimistic value, and a rejected change reloads the stored settings.
     func saveAutoSettings(_ settings: AutoCleanSettings) async {
         guard let engine else { return }
+        autoSettings = settings
+        autoSaveGeneration += 1
+        let generation = autoSaveGeneration
         do {
             let encoder = JSONEncoder()
             encoder.keyEncodingStrategy = .convertToSnakeCase
             let json = String(decoding: try encoder.encode(settings), as: UTF8.self)
-            autoSettings = try await engine.run(.autoSettingsSet(json))
+            let stored: AutoCleanSettings = try await engine.run(.autoSettingsSet(json))
+            guard generation == autoSaveGeneration else { return }
+            autoSettings = stored
             error = nil
-            if !autoSettings.ram.enabled && !autoSettings.storage.enabled {
+            if !stored.ram.enabled && !stored.storage.enabled {
                 autoStatus = "Auto-clean is off."
             }
         } catch {
             self.error = error.localizedDescription
+            if generation == autoSaveGeneration {
+                if let stored: AutoCleanSettings = try? await engine.run(.autoSettings) {
+                    autoSettings = stored
+                }
+            }
         }
-        await loadAutoClean()
     }
 
     func autoTick() async {

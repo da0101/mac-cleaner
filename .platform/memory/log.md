@@ -71,3 +71,15 @@
 - 2026-11-17 — commit `085e760`: chore: remove legacy Python-era config, conventions, and retired domain docs — auto-logged
 
 - 2026-11-17 — commit `8c16739`: chore: remove Python-era work streams — auto-logged
+
+- 2026-11-17 — commit `b2562ec`: chore: drop Python-era streams from ACTIVE index — auto-logged
+
+- 2026-11-17 — commit `901c278`: feat: offer project Xcode/iOS build output, Yarn project caches, device support and Chrome model for cleanup — auto-logged
+
+- 2026-11-17 — commit `1d1508c`: fix: re-measure storage after a cleanup so removed items leave the managed list — auto-logged
+
+- 2026-11-17 — commit `3acd0e0`: feat: auto-clean engine — opt-in RAM relief policy and scheduled storage cleanup — auto-logged
+
+- 2026-11-17 — commit `8cb229a`: feat: Auto-Clean screen and scheduler in the native app — auto-logged
+
+- 2026-11-17 — commit `7a28907`: fix: apply the protected-app filter when rows render so it follows the loaded list — auto-logged
