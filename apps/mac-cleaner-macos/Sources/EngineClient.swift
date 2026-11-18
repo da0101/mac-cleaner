@@ -21,6 +21,7 @@ enum EngineCommand: Sendable {
     case autoReportQuit(String, UInt64)
     case autoLog(Int)
     case autoProtectedApps
+    case energy
 
     var arguments: [String] {
         switch self {
@@ -45,6 +46,7 @@ enum EngineCommand: Sendable {
         case .autoReportQuit(let app, let bytes): ["auto-report-quit", "--", app, String(bytes)]
         case .autoLog(let limit): ["auto-log", "--limit", String(min(max(limit, 1), 100))]
         case .autoProtectedApps: ["auto-protected-apps"]
+        case .energy: ["energy"]
         }
     }
 }

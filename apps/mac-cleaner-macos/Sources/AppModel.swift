@@ -28,6 +28,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var autoLog: [AutoLogEntry] = []
     @Published private(set) var autoStatus = "Auto-clean is off."
     @Published private(set) var autoProtectedApps: [String] = []
+    @Published private(set) var energy: EnergyReport?
+    @Published private(set) var isSamplingEnergy = false
 
     private let engine: EngineClient?
     private var monitorTask: Task<Void, Never>?
@@ -88,6 +90,33 @@ final class AppModel: ObservableObject {
                 try? await Task.sleep(for: .seconds(30))
             }
         }
+    }
+
+    /// Samples CPU for about a second, so it runs only while the Energy screen is open.
+    func refreshEnergy() async {
+        guard let engine, !isSamplingEnergy else { return }
+        isSamplingEnergy = true
+        defer { isSamplingEnergy = false }
+        do {
+            energy = try await engine.run(.energy)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    /// Normal quit (like ⌘Q) for an app Rust marked quittable; unsaved documents still ask to save.
+    func quitApp(_ app: AppEnergy) async {
+        guard app.canQuit, let path = app.appPath else { return }
+        let allowed = ["/Applications/", NSHomeDirectory() + "/Applications/"]
+        guard allowed.contains(where: { path.hasPrefix($0) }) else { return }
+        let running = NSWorkspace.shared.runningApplications.filter {
+            $0.bundleURL?.path == path && $0.bundleIdentifier != Bundle.main.bundleIdentifier
+        }
+        guard !running.isEmpty else { return }
+        for item in running { _ = item.terminate() }
+        notice = "Asked \(app.name) to quit."
+        try? await Task.sleep(for: .seconds(3))
+        await refreshEnergy()
     }
 
     func loadAutoClean() async {

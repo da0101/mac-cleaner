@@ -8,7 +8,8 @@ mod plans;
 mod quarantine;
 
 pub use auto::{
-    app_bundle, is_never_quit, never_quit_names, plan_ram_relief, validate_auto_settings,
+    app_bundle, group_app_energy, is_never_quit, never_quit_names, plan_ram_relief,
+    validate_auto_settings,
 };
 pub use catalog::{
     PROJECTS_ROOT, TargetLayout, TargetSpec, candidate_path, catalog, catalog_root, marker_present,

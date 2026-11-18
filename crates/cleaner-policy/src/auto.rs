@@ -10,7 +10,7 @@ use std::path::Path;
 
 use chrono::{DateTime, Duration, Utc};
 use cleaner_domain::{
-    AutoCleanSettings, AutoQuitTarget, AutoRamDecision, AutoRamSettings, AutoRamState,
+    AppEnergy, AutoCleanSettings, AutoQuitTarget, AutoRamDecision, AutoRamSettings, AutoRamState,
     MemorySnapshot, ProcessSnapshot,
 };
 
@@ -281,4 +281,54 @@ pub fn never_quit_names() -> Vec<String> {
         .chain(NEVER_QUIT_EXACT.iter())
         .map(|name| (*name).to_owned())
         .collect()
+}
+
+/// Add every process into its app, so VS Code or Chrome appear once with all
+/// their helpers. Heaviest CPU first, then memory. Pure: it never signals anything.
+#[must_use]
+pub fn group_app_energy(processes: &[ProcessSnapshot], home: &str) -> Vec<AppEnergy> {
+    let user_apps = format!("{home}/Applications/");
+    let mut groups: HashMap<String, AppEnergy> = HashMap::new();
+    for process in processes {
+        let bundle = process.executable.as_deref().and_then(app_bundle);
+        let (key, name, app_path) = match &bundle {
+            Some((name, path)) => (path.clone(), name.clone(), Some(path.clone())),
+            None => (format!("proc:{}", process.name), process.name.clone(), None),
+        };
+        let group = groups.entry(key).or_insert_with(|| AppEnergy {
+            name,
+            app_path,
+            process_count: 0,
+            memory_bytes: 0,
+            cpu_percent: 0.0,
+            protected: false,
+            protection_reason: None,
+            can_quit: false,
+        });
+        group.process_count += 1;
+        group.memory_bytes = group.memory_bytes.saturating_add(process.memory_bytes);
+        group.cpu_percent += f64::from(process.cpu_percent);
+        if process.protected {
+            group.protected = true;
+            if group.protection_reason.is_none() {
+                group
+                    .protection_reason
+                    .clone_from(&process.protection_reason);
+            }
+        }
+    }
+    let mut apps: Vec<AppEnergy> = groups.into_values().collect();
+    for app in &mut apps {
+        app.protected |= is_never_quit(&app.name);
+        app.can_quit = !app.protected
+            && app.app_path.as_deref().is_some_and(|path| {
+                path.starts_with("/Applications/") || path.starts_with(&user_apps)
+            });
+    }
+    apps.sort_by(|a, b| {
+        b.cpu_percent
+            .total_cmp(&a.cpu_percent)
+            .then(b.memory_bytes.cmp(&a.memory_bytes))
+    });
+    apps
 }

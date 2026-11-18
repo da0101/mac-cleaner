@@ -25,6 +25,21 @@ const MAX_ITEMS_PER_RUN: usize = 100;
 
 impl AppService {
     /// Lower-case names of apps that can never be on the quit list.
+    /// Per-app CPU and memory, helpers added up. Read-only.
+    pub async fn energy_report(&self) -> Result<cleaner_domain::EnergyReport, ServiceError> {
+        let monitor = std::sync::Arc::clone(&self.monitor);
+        let (processes, logical_cores, total_cpu) =
+            tokio::task::spawn_blocking(move || monitor.sampled_processes()).await?;
+        let home = self.home.to_string_lossy().into_owned();
+        let mut apps = cleaner_policy::group_app_energy(&processes, &home);
+        apps.truncate(25);
+        Ok(cleaner_domain::EnergyReport {
+            logical_cores,
+            total_cpu_percent: total_cpu,
+            apps,
+        })
+    }
+
     #[must_use]
     pub fn auto_protected_apps(&self) -> Vec<String> {
         cleaner_policy::never_quit_names()

@@ -445,3 +445,64 @@ fn catalog_ids_are_unique_and_new_cache_targets_resolve() {
         }
     }
 }
+
+#[test]
+fn energy_groups_helpers_into_one_app_and_marks_quit_rules() {
+    use cleaner_domain::ProcessSnapshot;
+
+    use crate::group_app_energy;
+    let process = |pid, exe: &str, cpu: f32, mem: u64, protected| ProcessSnapshot {
+        pid,
+        start_time_unix: 1,
+        name: exe.rsplit('/').next().unwrap_or(exe).to_owned(),
+        executable: Some(exe.to_owned()),
+        memory_bytes: mem,
+        cpu_percent: cpu,
+        protected,
+        protection_reason: protected.then(|| "Developer tool".to_owned()),
+    };
+    let processes = vec![
+        process(
+            1,
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            3.0,
+            100,
+            false,
+        ),
+        process(
+            2,
+            "/Applications/Google Chrome.app/Contents/Frameworks/H.app/Contents/MacOS/H",
+            40.0,
+            900,
+            false,
+        ),
+        process(
+            3,
+            "/Applications/Visual Studio Code.app/Contents/MacOS/Code",
+            20.0,
+            300,
+            true,
+        ),
+        process(
+            4,
+            "/System/Applications/Calendar.app/Contents/MacOS/Calendar",
+            1.0,
+            50,
+            false,
+        ),
+        process(5, "/opt/homebrew/bin/node", 10.0, 500, true),
+    ];
+    let apps = group_app_energy(&processes, "/Users/tester");
+    let chrome = apps.iter().find(|a| a.name == "Google Chrome");
+    assert!(chrome.is_some_and(|a| a.process_count == 2 && a.memory_bytes == 1000 && a.can_quit));
+    assert_eq!(apps.first().map(|a| a.name.as_str()), Some("Google Chrome"));
+    assert!(
+        apps.iter()
+            .any(|a| a.name == "Visual Studio Code" && a.protected && !a.can_quit)
+    );
+    assert!(
+        apps.iter()
+            .any(|a| a.name == "Calendar" && a.app_path.is_none() && !a.can_quit)
+    );
+    assert!(apps.iter().any(|a| a.name == "node" && !a.can_quit));
+}

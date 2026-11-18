@@ -199,6 +199,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case storage = "Storage"
     case quarantine = "Recovery"
     case activity = "History"
+    case energy = "Energy"
     case autoClean = "Auto-Clean"
     case agents = "Agents"
     var id: Self { self }
@@ -209,6 +210,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .cleanup: "trash"
         case .quarantine: "archivebox"
         case .activity: "list.bullet.rectangle.portrait"
+        case .energy: "battery.50percent"
         case .autoClean: "bolt.circle"
         case .agents: "point.3.connected.trianglepath.dotted"
         }
@@ -274,4 +276,24 @@ struct AutoLogEntry: Decodable, Identifiable, Sendable {
 
 struct AutoRecorded: Decodable, Sendable {
     let recorded: Bool
+}
+
+// MARK: - Energy
+
+struct AppEnergy: Decodable, Identifiable, Sendable {
+    let name: String
+    let appPath: String?
+    let processCount: UInt32
+    let memoryBytes: UInt64
+    let cpuPercent: Double
+    let protected: Bool
+    let protectionReason: String?
+    let canQuit: Bool
+    var id: String { appPath ?? "proc:\(name)" }
+}
+
+struct EnergyReport: Decodable, Sendable {
+    let logicalCores: UInt32
+    let totalCpuPercent: Double
+    let apps: [AppEnergy]
 }

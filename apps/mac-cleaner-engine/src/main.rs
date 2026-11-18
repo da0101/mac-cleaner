@@ -80,6 +80,8 @@ enum Command {
         #[arg(long, default_value_t = 30)]
         limit: u32,
     },
+    /// CPU and memory per app, helpers added up.
+    Energy,
     /// Names of apps that can never be put on the quit list.
     AutoProtectedApps,
 }
@@ -213,6 +215,7 @@ async fn run(cli: Cli) -> Result<Value> {
             json!({ "recorded": true })
         }
         Command::AutoLog { limit } => serde_json::to_value(service.auto_log(limit)?)?,
+        Command::Energy => serde_json::to_value(service.energy_report().await?)?,
         Command::AutoProtectedApps => serde_json::to_value(service.auto_protected_apps())?,
     };
     Ok(data)

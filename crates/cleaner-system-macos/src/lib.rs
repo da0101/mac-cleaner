@@ -61,6 +61,24 @@ impl SystemMonitor {
         })
     }
 
+    /// Every process with a real CPU reading: two samples a short interval apart.
+    pub fn sampled_processes(&self) -> (Vec<ProcessSnapshot>, u32, f64) {
+        let mut system = self.system.lock();
+        system.refresh_processes(ProcessesToUpdate::All, true);
+        system.refresh_cpu_usage();
+        std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL + Duration::from_millis(10));
+        system.refresh_cpu_usage();
+        system.refresh_processes(ProcessesToUpdate::All, true);
+        let cores = u32::try_from(system.cpus().len()).unwrap_or(u32::MAX);
+        let total = f64::from(system.global_cpu_usage().clamp(0.0, 100.0));
+        let processes = system
+            .processes()
+            .iter()
+            .map(|(pid, process)| process_snapshot(pid.as_u32(), process))
+            .collect();
+        (processes, cores, total)
+    }
+
     /// Every running process, not only the heaviest. Auto-clean needs the full
     /// list to total an app's helper processes and to confirm none is protected.
     pub fn all_processes(&self) -> Vec<ProcessSnapshot> {

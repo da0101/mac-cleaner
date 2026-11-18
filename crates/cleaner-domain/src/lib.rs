@@ -3,6 +3,7 @@
 mod auto;
 mod catalog;
 mod cleanup;
+mod energy;
 mod error;
 mod quarantine;
 mod storage;
@@ -12,6 +13,7 @@ mod tool_cleanup;
 pub use auto::*;
 pub use catalog::*;
 pub use cleanup::*;
+pub use energy::*;
 pub use error::*;
 pub use quarantine::*;
 pub use storage::*;

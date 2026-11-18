@@ -85,3 +85,5 @@
 - 2026-11-17 — commit `7a28907`: fix: apply the protected-app filter when rows render so it follows the loaded list — auto-logged
 
 - 2026-11-17 — commit `475f0f6`: fix: status bar no longer covers the Clean bar; Auto-Clean switches update instantly — auto-logged
+
+- 2026-11-18 — commit `a0974ae`: feat: catalog Chrome, Homebrew, Playwright, Cypress, pip, Hugging Face, Bun, updater leftovers, XCTest clones and Maestro output — auto-logged
