@@ -71,10 +71,11 @@ final class MacCleanerAppDelegate: NSObject, NSApplicationDelegate {
 
         statusPopover.behavior = .transient
         statusPopover.animates = true
-        statusPopover.contentSize = NSSize(width: 430, height: 500)
-        statusPopover.contentViewController = NSHostingController(
-            rootView: MenuBarView().environmentObject(model)
-        )
+        statusPopover.contentSize = NSSize(width: 350, height: 470)
+        let hosting = NSHostingController(rootView: MenuBarView().environmentObject(model))
+        // The panel's height follows its content, so adding or hiding a section never clips it.
+        hosting.sizingOptions = [.preferredContentSize]
+        statusPopover.contentViewController = hosting
 
         snapshotCancellable = model.$snapshot
             .receive(on: RunLoop.main)
