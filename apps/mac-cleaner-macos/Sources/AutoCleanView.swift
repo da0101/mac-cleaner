@@ -324,6 +324,9 @@ struct AutoCleanView: View {
     private static let recommended = [
         "npm-npx-cache", "npm-content-cache", "yarn-berry-cache", "puppeteer-browser-cache",
         "project-yarn-offline-cache", "project-ios-build", "project-xcode-derived-data", "xcode-derived-data",
+        "vscode-updater-cache", "postman-updater-cache", "homebrew-download-cache", "pip-download-cache",
+        "playwright-browser-cache", "cypress-binary-cache", "bun-package-cache", "maestro-test-output",
+        "xctest-clone-devices",
     ]
 
     private static let categories: [AutoCategory] = [
@@ -337,6 +340,17 @@ struct AutoCleanView: View {
         AutoCategory(id: "xcode-derived-data", title: "Xcode DerivedData", detail: "Projects untouched for 14+ days. Xcode rebuilds and re-indexes."),
         AutoCategory(id: "xcode-device-support", title: "Xcode device symbols", detail: "Copied from the iPhone again next time it is connected (a few minutes)."),
         AutoCategory(id: "chrome-on-device-model", title: "Chrome on-device model", detail: "Chrome downloads it again when a feature needs it."),
+        AutoCategory(id: "vscode-updater-cache", title: "VS Code update leftovers", detail: "Old downloaded update packages. 3+ days idle."),
+        AutoCategory(id: "postman-updater-cache", title: "Postman update leftovers", detail: "Old downloaded update packages. 3+ days idle."),
+        AutoCategory(id: "chrome-browser-cache", title: "Chrome browser cache", detail: "Only when Chrome has not run for a day. Pages and images load again."),
+        AutoCategory(id: "homebrew-download-cache", title: "Homebrew downloads", detail: "Old bottles and sources. 3+ days idle."),
+        AutoCategory(id: "pip-download-cache", title: "pip download cache", detail: "Python packages download again when needed."),
+        AutoCategory(id: "playwright-browser-cache", title: "Playwright browsers", detail: "Downloaded again by the next Playwright test run."),
+        AutoCategory(id: "cypress-binary-cache", title: "Cypress binaries", detail: "Downloaded again by the next Cypress run."),
+        AutoCategory(id: "bun-package-cache", title: "Bun package cache", detail: "Re-downloaded by the next bun install."),
+        AutoCategory(id: "huggingface-model-cache", title: "Hugging Face models", detail: "Models download again, which can be large. 7+ days idle."),
+        AutoCategory(id: "maestro-test-output", title: "Maestro test output", detail: "Old screenshots, recordings and logs. 3+ days idle."),
+        AutoCategory(id: "xctest-clone-devices", title: "Xcode test simulator clones", detail: "Created by parallel UI tests. 3+ days idle."),
         AutoCategory(id: "cocoapods-download-cache", title: "CocoaPods download cache", detail: "Pods download again on the next install."),
         AutoCategory(id: "project-flutter-build", title: "Flutter build output", detail: "The next Flutter build recreates it, which can take minutes."),
         AutoCategory(id: "project-rust-target", title: "Rust target folders", detail: "The next cargo build recreates them, which can take many minutes."),

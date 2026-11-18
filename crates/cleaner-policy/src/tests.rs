@@ -416,3 +416,32 @@ mod auto_policy {
         ));
     }
 }
+
+#[test]
+fn catalog_ids_are_unique_and_new_cache_targets_resolve() {
+    let home = Path::new("/Users/tester");
+    let mut seen = std::collections::HashSet::new();
+    for target in catalog() {
+        assert!(seen.insert(target.id), "duplicate id {}", target.id);
+    }
+    for id in [
+        "chrome-browser-cache",
+        "homebrew-download-cache",
+        "playwright-browser-cache",
+        "cypress-binary-cache",
+        "pip-download-cache",
+        "huggingface-model-cache",
+        "bun-package-cache",
+        "vscode-updater-cache",
+        "postman-updater-cache",
+        "xctest-clone-devices",
+        "maestro-test-output",
+    ] {
+        let target = catalog().iter().find(|t| t.id == id);
+        assert!(target.is_some(), "{id} missing");
+        if let Some(target) = target {
+            assert!(catalog_root(home, target).is_ok(), "{id}");
+            assert!(target.minimum_age.as_secs() >= 24 * 3600, "{id}");
+        }
+    }
+}

@@ -83,3 +83,5 @@
 - 2026-11-17 — commit `8cb229a`: feat: Auto-Clean screen and scheduler in the native app — auto-logged
 
 - 2026-11-17 — commit `7a28907`: fix: apply the protected-app filter when rows render so it follows the loaded list — auto-logged
+
+- 2026-11-17 — commit `475f0f6`: fix: status bar no longer covers the Clean bar; Auto-Clean switches update instantly — auto-logged

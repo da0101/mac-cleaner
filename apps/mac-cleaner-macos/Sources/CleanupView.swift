@@ -403,7 +403,7 @@ struct CleanupView: View {
             .sorted { $0.bytes > $1.bytes }
     }
 
-    private static let xcodeTargets: Set<String> = ["xcode-derived-data", "xcode-device-support"]
+    private static let xcodeTargets: Set<String> = ["xcode-derived-data", "xcode-device-support", "xctest-clone-devices"]
 
     private var groups: [CandidateGroup] {
         let definitions: [(String, String, String, (String) -> Bool)] = [

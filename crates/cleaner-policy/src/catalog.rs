@@ -63,7 +63,15 @@ impl TargetSpec {
     pub fn allows_internal_links(&self) -> bool {
         // Xcode DerivedData children are per-project build trees whose Swift
         // package checkouts routinely contain header symlinks.
-        !matches!(self.layout, TargetLayout::Children) || self.id == "xcode-derived-data"
+        !matches!(self.layout, TargetLayout::Children)
+            || matches!(
+                self.id,
+                // App bundles and simulator clones carry framework symlinks.
+                "xcode-derived-data"
+                    | "vscode-updater-cache"
+                    | "postman-updater-cache"
+                    | "xctest-clone-devices"
+            )
     }
 }
 
@@ -233,6 +241,101 @@ const REVIEW_TARGETS: &[TargetSpec] = &[
         layout: TargetLayout::Named("OptGuideOnDeviceModel"),
         require_git_ignored: false,
     },
+    aged_named(
+        "chrome-browser-cache",
+        "Chrome browser cache",
+        "Library/Caches/Google",
+        "Chrome",
+        "Google Chrome",
+        "Cached web pages and images; offered only when Chrome has not run for a day",
+        24,
+    ),
+    aged_named(
+        "homebrew-download-cache",
+        "Homebrew downloads",
+        "Library/Caches",
+        "Homebrew",
+        "Homebrew",
+        "Downloaded bottles and sources from earlier installs",
+        72,
+    ),
+    aged_named(
+        "playwright-browser-cache",
+        "Playwright browsers",
+        "Library/Caches",
+        "ms-playwright",
+        "Playwright",
+        "Browser builds that Playwright downloaded for automated tests",
+        72,
+    ),
+    aged_named(
+        "cypress-binary-cache",
+        "Cypress binaries",
+        "Library/Caches",
+        "Cypress",
+        "Cypress",
+        "Test runner binaries that Cypress downloaded",
+        72,
+    ),
+    aged_named(
+        "pip-download-cache",
+        "pip download cache",
+        "Library/Caches",
+        "pip",
+        "pip",
+        "Python packages that pip downloaded earlier",
+        24,
+    ),
+    aged_named(
+        "huggingface-model-cache",
+        "Hugging Face models",
+        ".cache",
+        "huggingface",
+        "Hugging Face",
+        "Models and datasets downloaded for local AI work",
+        168,
+    ),
+    aged_named(
+        "bun-package-cache",
+        "Bun package cache",
+        ".bun/install",
+        "cache",
+        "Bun",
+        "Packages that Bun downloaded earlier",
+        24,
+    ),
+    aged_children(
+        "vscode-updater-cache",
+        "Visual Studio Code update leftovers",
+        "Library/Caches/com.microsoft.VSCode.ShipIt",
+        "Visual Studio Code",
+        "Downloaded update packages the updater left behind",
+        72,
+    ),
+    aged_children(
+        "postman-updater-cache",
+        "Postman update leftovers",
+        "Library/Caches/com.postmanlabs.agent.mac.ShipIt",
+        "Postman",
+        "Downloaded update packages the updater left behind",
+        72,
+    ),
+    aged_children(
+        "xctest-clone-devices",
+        "Xcode test simulator clones",
+        "Library/Developer/XCTestDevices",
+        "Xcode",
+        "Simulator clones that parallel UI tests created",
+        72,
+    ),
+    aged_children(
+        "maestro-test-output",
+        "Maestro test output",
+        ".maestro/tests",
+        "Maestro",
+        "Screenshots, recordings and logs from earlier Maestro runs",
+        72,
+    ),
 ];
 
 /// Home-relative directory that contains the projects Mac Cleaner inspects.
@@ -258,6 +361,47 @@ const fn named(
         safety_tier: SafetyTier::ReviewRequired,
         minimum_age: Duration::ZERO,
         layout: TargetLayout::Named(entry),
+        require_git_ignored: false,
+    }
+}
+
+/// A named cache directory that is offered only after it has sat idle.
+const fn aged_named(
+    id: &'static str,
+    display_name: &'static str,
+    home_relative_root: &'static str,
+    entry: &'static str,
+    owner: &'static str,
+    reason: &'static str,
+    idle_hours: u64,
+) -> TargetSpec {
+    TargetSpec {
+        minimum_age: Duration::from_hours(idle_hours),
+        ..named(id, display_name, home_relative_root, entry, owner, reason)
+    }
+}
+
+/// Every direct child of a tool's output folder, offered after it has sat idle.
+const fn aged_children(
+    id: &'static str,
+    display_name: &'static str,
+    home_relative_root: &'static str,
+    owner: &'static str,
+    reason: &'static str,
+    idle_hours: u64,
+) -> TargetSpec {
+    TargetSpec {
+        id,
+        display_name,
+        home_relative_root,
+        category: "Tool leftovers",
+        reason,
+        owner,
+        recovery: "The tool recreates what it needs on next use",
+        recovery_mode: RecoveryMode::Rebuild,
+        safety_tier: SafetyTier::ReviewRequired,
+        minimum_age: Duration::from_hours(idle_hours),
+        layout: TargetLayout::Children,
         require_git_ignored: false,
     }
 }
