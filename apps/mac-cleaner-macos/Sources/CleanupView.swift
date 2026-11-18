@@ -418,7 +418,10 @@ struct CleanupView: View {
              { Self.xcodeTargets.contains($0) }),
         ]
         return definitions.compactMap { id, title, subtitle, matches in
-            let items = candidates.filter { matches($0.targetId) }.sorted { $0.bytes > $1.bytes }
+            // Ties (several Zero KB rows) fall back to the path so rows never swap places on a rescan.
+            let items = candidates.filter { matches($0.targetId) }.sorted {
+                $0.bytes != $1.bytes ? $0.bytes > $1.bytes : $0.lexicalPath < $1.lexicalPath
+            }
             return items.isEmpty ? nil : CandidateGroup(id: id, title: title, subtitle: subtitle, items: items)
         }
     }

@@ -25,6 +25,14 @@ struct AutoCleanView: View {
             refreshRunningApps()
             await model.loadAutoClean()
         }
+        // Event-driven: macOS tells us when an app opens or closes, so nothing polls.
+        // These only fire while this screen is showing.
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didLaunchApplicationNotification)) { _ in
+            refreshRunningApps()
+        }
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didTerminateApplicationNotification)) { _ in
+            refreshRunningApps()
+        }
     }
 
     // MARK: Header
@@ -109,15 +117,23 @@ struct AutoCleanView: View {
                         .foregroundStyle(.secondary)
                 }
                 ForEach(appRows) { app in
-                    Toggle(isOn: appBinding(app.name)) {
-                        HStack(spacing: 9) {
-                            if let icon = app.icon {
-                                Image(nsImage: icon).resizable().frame(width: 20, height: 20)
+                    HStack {
+                        Toggle(isOn: appBinding(app.name)) {
+                            HStack(spacing: 9) {
+                                if let icon = app.icon {
+                                    Image(nsImage: icon).resizable().frame(width: 20, height: 20)
+                                }
+                                Text(app.name)
+                                if !app.running {
+                                    Text("not running").font(.caption2).foregroundStyle(.tertiary)
+                                }
                             }
-                            Text(app.name)
-                            if !app.running {
-                                Text("not running").font(.caption2).foregroundStyle(.tertiary)
-                            }
+                        }
+                        Spacer()
+                        if let process = app.process {
+                            Button("Quit") { quit(process, name: app.name) }
+                                .controlSize(.small)
+                                .help("Asks \(app.name) to quit normally, like ⌘Q. Unsaved documents still ask to save.")
                         }
                     }
                 }
@@ -273,7 +289,7 @@ struct AutoCleanView: View {
         var rows = runningApps.filter { !isProtected($0.name) }
         for name in model.autoSettings.ram.quitApps
         where !rows.contains(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
-            rows.append(RunningApp(name: name, icon: nil, running: false))
+            rows.append(RunningApp(name: name, icon: nil, running: false, process: nil))
         }
         return rows.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
@@ -283,13 +299,20 @@ struct AutoCleanView: View {
     private func refreshRunningApps() {
         let allowed = ["/Applications/", NSHomeDirectory() + "/Applications/"]
         runningApps = NSWorkspace.shared.runningApplications.compactMap { app in
-            guard app.activationPolicy == .regular,
+            guard app.activationPolicy == .regular, !app.isTerminated,
                   let path = app.bundleURL?.path,
                   allowed.contains(where: { path.hasPrefix($0) }),
                   app.bundleIdentifier != Bundle.main.bundleIdentifier,
                   let name = app.localizedName else { return nil }
-            return RunningApp(name: name, icon: app.icon, running: true)
+            return RunningApp(name: name, icon: app.icon, running: true, process: app)
         }
+    }
+
+    /// Normal quit only (like ⌘Q). Rows are already filtered to unprotected apps.
+    private func quit(_ process: NSRunningApplication, name: String) {
+        guard !isProtected(name), process.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
+        _ = process.terminate()
+        model.notice = "Asked \(name) to quit."
     }
 
     /// Protected apps (editors, Docker, system apps) are never offered.
@@ -362,6 +385,7 @@ private struct RunningApp: Identifiable {
     let name: String
     let icon: NSImage?
     let running: Bool
+    let process: NSRunningApplication?
     var id: String { name.lowercased() }
 }
 
